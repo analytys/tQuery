@@ -1,0 +1,130 @@
+基本架构：
+
+单页面，采用html img + js images server
+
+nginx 处理静态html
+
+前后段逻辑都使用js完成，尽可能少的占用服务器端资源。
+
+客户端和服务器端保持数据同步，需要用socket通信（类似聊天室）  
+
+
+实时变动的是库存商品数量和商品的价格等信息，需要服务器端推数据给客户端
+
+维持一个连接列表，服务器最大连接数，如果超过这个最大连接数，则后来的用户不能连接服务器，尽可能的保证大部分用户的正常使用
+
+如果某个用户在既定的时间内没有任何操作，将链接断开，省下资源提供给需要的用户
+
+
+Base ：
+html --> nginx
+js   --> nginx
+img  --> cdn
+
+redis（缓存和存储分开） + mysql（数据后台，数据分析都有绝对的优势，采用定时写入的策略）
+
+时间服务  操作需要等待一定的时间以后才会执行，执行完后服务器端需要主动向客户端推数据
+
+一个解决方案： 客户端定时发心跳包，服务器端检查是否有需要执行的任务，如果有则添加到任务队列，等待下一次心跳包的时候，将执行的结果返回回去
+
+心跳包和检测用户操作不冲突
+
+
+js性能比较：
+http://jsperf.com  非常好用直观而且开源
+
+js 性能测试和性能监控 http://benchmarkjs.com/
+
+
+分辨率自适应，使用统一的UI，没有额外的不同的元件
+
+
+
+
+uid  user id
+pid  product id
+cid  country id
+rid  rank id
+
+
+tabgroup 5个tab 标配
+
+
+为了保证性能，将所有的除图片外的文件，全部写成js，使之可以被编译
+仿照 http://kraniumjs.com/#h-using-kranium 写法
+
+createView({opt})
+
+opt
+{
+        id :  '',
+        cls : '' , // like className  or className 
+        click : '' ,       
+        
+}
+
+
+create({
+        type:"window",
+        text:
+        children:[
+                {
+                        type:"button",
+                        id  : "register_ok",
+                        cls : "aa",  
+                        title : "" ,
+                },
+                {
+                        type:"view",
+                        id : "register_view",
+                        cls: "register_view"
+                        title :"",
+                        click : '' ,
+                        event : {
+                                        "click":function(){},
+                                        "updateData":function(){},
+                                }
+                        children : []
+                }
+        ]
+})
+
+
+维护一个全局 obj ，存储UI对象信息，包括ID，className, 索引 ， 注册了什么事件 。。。  UI 相关的信息都可以从这个obj中获取到
+
+
+http://rensanning.iteye.com/blog/1325015  ios内存泄漏检查
+
+http://rensanning.iteye.com/blog/1323586 一个关于titanium mobile的很好的框架
+
+根据jquery实现的一个js库 https://github.com/wGEric/TiQuery 里面有一些测试，内存监控等有用的资源 
+
+http://adamrenklint.com/projects/adamantium-js 也是一个jquery语法的库
+
+
+官方有框架，可以直接拿来用，很方便，主要是尽快出成果  但是学习成本也比较高，很多地方也不是自己想要的处理方式
+
+取其精华，去其糟粕，自己写框架，借鉴他们的代码，封装成自己喜欢的风格，适合自己的才是最好的
+xml布局存在的最大的问题就是性能的问题，将xml转化成json布局
+
+一切以易用和性能出发
+
+
+http://handhelddesigner.com/download-free-trial.html 这个设计工具  只支持mac
+
+http://www.kendoui.com/  不错的UI框架
+http://demos.kendoui.com/mobilethemebuilder/index.html   制作UI模板
+
+http://jimpunk.net/Loading/?page_id=9  很多的loading
+
+http://preloaders.net/ 自己动手创建loading图片
+
+
+
+
+
+
+
+
+
+
