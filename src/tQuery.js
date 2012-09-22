@@ -1,4 +1,5 @@
 /*!
+ * /*!
  * tQuery JavaScript Library v1.8.2
  * http://tquery.com/
  *
@@ -34,17 +35,19 @@
  * // create UI 
  * $({type:"window",id:"main",title:"hello tQuery"}).create();
  */
+
 (function( window, undefined ) {
 var
 	// A central reference to the root tQuery(document)
 	roottQuery,
 
+	// The deferred used on DOM ready
+	readyList,
+
 	// Use the correct document accordingly with window argument (sandbox)
-	
-	/* delete later */
-	document = window.document, // document 对象负责管理UI 元件
-	location = window.location, // location 对象负责管理page地址
-	navigator = window.navigator, // navigator 对象负责管理page方向 page的跳转等
+	document = window.document,
+	location = window.location,
+	navigator = window.navigator,
 
 	// Map over tQuery in case of overwrite
 	_tQuery = window.tQuery,
@@ -98,6 +101,19 @@ var
 		return ( letter + "" ).toUpperCase();
 	},
 
+	// The ready event handler and self cleanup method
+	DOMContentLoaded = function() {
+		if ( document.addEventListener ) {
+			document.removeEventListener( "DOMContentLoaded", DOMContentLoaded, false );
+			tQuery.ready();
+		} else if ( document.readyState === "complete" ) {
+			// we're here because readyState === "complete" in oldIE
+			// which is good enough for us to call the dom ready!
+			document.detachEvent( "onreadystatechange", DOMContentLoaded );
+			tQuery.ready();
+		}
+	},
+
 	// [[Class]] -> type pairs
 	class2type = {};
 
@@ -107,7 +123,6 @@ tQuery.fn = tQuery.prototype = {
 		var match, elem, ret, doc;
 
 		// Handle $(""), $(null), $(undefined), $(false)
-		//tQuery.error("selctor error");
 		if ( !selector ) {
 			return this;
 		}
@@ -169,7 +184,7 @@ tQuery.fn = tQuery.prototype = {
 				}
 
 			// HANDLE: $(expr, $(...))
-			} else if ( !context || context.tquery ) {
+			} else if ( !context || context.tQuery ) {
 				return ( context || roottQuery ).find( selector );
 
 			// HANDLE: $(expr, context)
@@ -179,8 +194,9 @@ tQuery.fn = tQuery.prototype = {
 			}
 
 		// HANDLE: $(function)
+		// Shortcut for document ready
 		} else if ( tQuery.isFunction( selector ) ) {
-			return selector && selector() ;
+			return roottQuery.ready( selector );
 		}
 
 		if ( selector.selector !== undefined ) {
@@ -195,7 +211,7 @@ tQuery.fn = tQuery.prototype = {
 	selector: "",
 
 	// The current version of tQuery being used
-	tquery: "0.0.1",
+	tQuery: "1.8.2",
 
 	// The default length of a tQuery object is 0
 	length: 0,
@@ -252,8 +268,7 @@ tQuery.fn = tQuery.prototype = {
 
 	ready: function( fn ) {
 		// Add the callback
-		//tQuery.ready.promise().done( fn );
-		tQuery.done( fn );
+		tQuery.ready.promise().done( fn );
 
 		return this;
 	},
@@ -292,127 +307,7 @@ tQuery.fn = tQuery.prototype = {
 	// Behaves like an Array's method, not like a tQuery method.
 	push: core_push,
 	sort: [].sort,
-	splice: [].splice ,
-	
-	// TOOD 
-	// My code here
-	
-	/**
-	 * 创建UI 对象
-	 * like  :
-	 * 
-	 * {
-	 * 		type:"window",
-	 * 		title : "Hello tQuery",
-	 * 		color : "#fff000",
-	 * 		background-image : "img/bk.png" ,
-	 * 		children : [
-	 * 					{
-	 * 						type : "label",
-	 * 						id : "label_register" ,
-	 * 						cls : "normal",
-	 * 						style : "",
-	 * 					},
-	 * 					{
-	 * 						type : "view",
-	 * 						children : [
-	 * 										{
-	 * 											type : "TextField",
-	 * 											hint : L("put your name") ,
-	 * 										}
-	 * 									] ,
-	 * 					},
-	 * 					{
-	 * 						type : "button",
-	 * 						click : function(){},
-	 * 						event : {
-	 * 									dblclick : function(e){},
-	 * 									click : function(e){}
-	 * 								}
-	 * 					},
-	 * 					]
-	 * 
-	 * }
-	 * 
-	 * 内部存储：
-	 * 
-	 * 每一个element 唯一绑定一个tQueryid
-	 * 
-	 * tQueryid list
-	 * {
-	 * 		aaaaaa : {
-	 * 					parent : tQueryid ,
-	 * 					children : [tQueryid ,tQueryid,tQueryid ],
-	 * 					color : "",
-	 * 					...........
-	 * 				}
-	 * }
-	 * 
-	 * 根据id , cls , tag 
-	 * 
-	 * {
-	 * 		a : {
-	 * 				tQueryid  : "",
-	 * 			},
-	 * 
-	 * 		b : {
-	 * 				tQueryid : "",
-	 * 			},
-	 * }
-	 * 
-	 * @param {Object} obj 布局page对象
-	 */
-	create : function(opt)
-	{
-		opt = tQuery.type(opt) === "object" ? opt : {} ; // 默认假设opt有一个page父对象
-		
-		opt = {
-				type: "page" ,
-				children : [ opt ] , // children 数组
-		};
-		
-		var gettQueryid = function()
-		{
-			var tQueryid = tQueryid || parseInt(Math.random() * (1000000 - 100 + 1) + 100) ;
-			return tQueryid + 1 ;
-		};
-		
-		var addElementToUIChain = function(element)
-		{
-			
-		};
-		
-		var handleUI = function( obj , parent )
-		{
-			for(var p in obj )
-			{
-				// handle type 
-				if( !obj.hasOwnPrototype("type") )
-				{
-					continue ;
-				}
-				
-				// Unrecognized type
-				if( !tQuery.inArray(obj.type,types) )
-				{
-				
-				}
-				
-				if( obj.hasOwnPrototype("children") /* has children node */ )
-				{
-					handleChildElement(parent, children) ;
-				}
-				
-				addElementToUIChain(obj[p]);
-				
-			}
-		};
-		
-		return function()
-		{
-			return handleUI(page) ;
-		} ;
-	}
+	splice: [].splice
 };
 
 // Give the init function the tQuery prototype for later instantiation
@@ -851,7 +746,7 @@ tQuery.extend({
 			ret = [],
 			i = 0,
 			length = elems.length,
-			// tquery objects are treated as arrays
+			// tQuery objects are treated as arrays
 			isArray = elems instanceof tQuery || length !== undefined && typeof length === "number" && ( ( length > 0 && elems[ 0 ] && elems[ length -1 ] ) || length === 0 || tQuery.isArray( elems ) ) ;
 
 		// Go through the array, translating each of the items to their
@@ -976,7 +871,7 @@ tQuery.ready.promise = function( obj ) {
 
 		// Catch cases where $(document).ready() is called after the browser event has already occurred.
 		// we once tried to use readyState "interactive" here, but it caused issues like the one
-		// discovered by ChrisS here: http://bugs.tquery.com/ticket/12282#comment:15
+		// discovered by ChrisS here: http://bugs.tQuery.com/ticket/12282#comment:15
 		if ( document.readyState === "complete" ) {
 			// Handle it asynchronously to allow scripts the opportunity to delay ready
 			setTimeout( tQuery.ready, 1 );
@@ -1648,7 +1543,7 @@ tQuery.extend({
 
 	// Unique for each copy of tQuery on the page
 	// Non-digits removed to match rinlinetQuery
-	expando: "tQuery" + ( tQuery.fn.tquery + Math.random() ).replace( /\D/g, "" ),
+	expando: "tQuery" + ( tQuery.fn.tQuery + Math.random() ).replace( /\D/g, "" ),
 
 	// The following elements throw uncatchable exceptions if you
 	// attempt to add expando properties to them.
@@ -2074,7 +1969,7 @@ tQuery.fn.extend({
 		});
 	},
 	// Based off of the plugin by Clint Helfers, with permission.
-	// http://blindsignals.com/index.php/2009/07/tquery-delay/
+	// http://blindsignals.com/index.php/2009/07/tQuery-delay/
 	delay: function( time, type ) {
 		time = tQuery.fx ? tQuery.fx.speeds[ time ] || time : time;
 		type = type || "fx";
@@ -5319,7 +5214,7 @@ if ( document.querySelectorAll ) {
 			// This is to test IE's treatment of not explictly
 			// setting a boolean content attribute,
 			// since its presence should be enough
-			// http://bugs.tquery.com/ticket/12359
+			// http://bugs.tQuery.com/ticket/12359
 			div.innerHTML = "<select><option selected=''></option></select>";
 
 			// IE8 - Some boolean attributes are not treated correctly
@@ -5593,7 +5488,7 @@ tQuery.fn.extend({
 		// Locate the position of the desired element
 		return tQuery.inArray(
 			// If it receives a tQuery object, the first element is used
-			elem.tquery ? elem[0] : elem, this );
+			elem.tQuery ? elem[0] : elem, this );
 	},
 
 	add: function( selector, context ) {
@@ -6595,7 +6490,7 @@ tQuery.extend({
 var matched, browser;
 
 // Use of tQuery.browser is frowned upon.
-// More details: http://api.tquery.com/tQuery.browser
+// More details: http://api.tQuery.com/tQuery.browser
 // tQuery.uaMatch maintained for back-compat
 tQuery.uaMatch = function( ua ) {
 	ua = ua.toLowerCase();
@@ -7340,7 +7235,7 @@ tQuery.param = function( a, traditional ) {
 	}
 
 	// If an array was passed in, assume that it is an array of form elements.
-	if ( tQuery.isArray( a ) || ( a.tquery && !tQuery.isPlainObject( a ) ) ) {
+	if ( tQuery.isArray( a ) || ( a.tQuery && !tQuery.isPlainObject( a ) ) ) {
 		// Serialize the form elements
 		tQuery.each( a, function() {
 			add( this.name, this.value );
@@ -9521,7 +9416,7 @@ tQuery.each( { Height: "height", Width: "width" }, function( name, type ) {
 				if ( tQuery.isWindow( elem ) ) {
 					// As of 5/8/2012 this will yield incorrect results for Mobile Safari, but there
 					// isn't a whole lot we can do. See pull request at this URL for discussion:
-					// https://github.com/tquery/tquery/pull/764
+					// https://github.com/tQuery/tQuery/pull/764
 					return elem.document.documentElement[ "client" + name ];
 				}
 
@@ -9559,12 +9454,12 @@ window.tQuery = window.$ = tQuery;
 // since tQuery can be concatenated with other files that may use define,
 // but not use a proper concatenation script that understands anonymous
 // AMD modules. A named AMD is safest and most robust way to register.
-// Lowercase tquery is used because AMD module names are derived from
+// Lowercase tQuery is used because AMD module names are derived from
 // file names, and tQuery is normally delivered in a lowercase file name.
 // Do this after creating the global so that if an AMD module wants to call
 // noConflict to hide this version of tQuery, it will work.
 if ( typeof define === "function" && define.amd && define.amd.tQuery ) {
-	define( "tquery", [], function () { return tQuery; } );
+	define( "tQuery", [], function () { return tQuery; } );
 }
 
 })( this );
