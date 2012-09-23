@@ -3,7 +3,34 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<script type="text/javascript" src="tQuery.js"></script>
-		<script type="text/javascript" src="create.js"></script>
+		<script type="text/javascript" src='ti.js'></script>
+		<script "text/javascript" src="create.js"></script>
+		<script type="text/javascript">
+			window.onload = function()
+			{
+				var opt = {
+					type : "window" ,
+					children : [
+						{
+							type : "button" ,
+							color : "#fff000",
+						}
+					]
+				}
+				
+				$.create(opt);
+				
+				var a = $.UiChain("id");
+				
+				var b = $.UiChain('cls');
+				
+				var c = $.UiChain('tag');
+				
+				var d = $.UiChain('chain');
+				
+				console.log(a,b,c,d);
+			}
+		</script>
 		<title>New Web Project</title>
 	</head>
 	<body>

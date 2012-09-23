@@ -224,14 +224,14 @@ tQuery.extend({
 					if( !obj["type"] )
 					{
 						// log error
-						return ;
+						return Ti.API.error("type is required for each ui element");
 					}
 					
 					// Unrecognized type
 					if( -1 == tQuery.inArray(obj.type.toLowerCase(),types) )
 					{
 						// log error
-						return ;
+						return Ti.API.error("Unrecognized type");
 					}
 					
 					var tQueryid = gettQueryid(); // 当前对象的唯一标识符
@@ -271,6 +271,7 @@ tQuery.extend({
 				opt = (opt && tQuery.type(opt) === "object") ? opt : {} ; 
 				
 				// 默认给opt添加一个page父对象
+				/* 以page的方式来管理Ui，方便不用的Ui及时创建或者销毁 */
 				if( !opt["type"] || opt.type != "page" )
 				{
 					opt = {
@@ -279,15 +280,22 @@ tQuery.extend({
 					};
 				}
 				
+				
 				return handleUI(opt);
 			}
+			
 			
 			function createTiUi(opt)
 			{
 				create(opt);				
 				
-				console.log(tag_list);
+				addListToChain();	
 				
+				return tQuery.UiChain();		
+			}
+			
+			function addListToChain()
+			{
 				// add list to chain
 				tQuery.UiChain('id' , id_list );
 				
@@ -296,6 +304,7 @@ tQuery.extend({
 				tQuery.UiChain('tag', tag_list);
 				
 				tQuery.UiChain('chain' , tQuery_list );
+
 			}
 			
 			return createTiUi(opt) ; // return function
