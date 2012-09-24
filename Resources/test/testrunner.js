@@ -20,7 +20,6 @@ runner.run({
   tests : './type.js'
 });
 
-
 runner.run({
   code : basePath + 'trim.js',
   tests : './trim.js'
@@ -51,6 +50,17 @@ runner.run({
   code : basePath + 'style.js',
   tests : './style.js'
 });
+
+runner.run({
+  code : basePath + 'getMulitClass.js',
+  tests : './getMulitClass.js'
+});
+
+runner.run({
+  code : basePath + 'isNumber.js',
+  tests : './isNumber.js'
+});
+
 
 /* test tQuery */
 runner.run({

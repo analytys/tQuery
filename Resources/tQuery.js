@@ -1,5 +1,5 @@
 /**
- * tQuery framework simple  
+ * tQuery framework simple  and easy
  */
 
 var isObject = require("./module/base/isObject").isObject ;
@@ -7,6 +7,9 @@ var isArray = require("./module/base/isArray").isArray ;
 var type = require("./module/base/type").type ;
 var inArray = require("./module/base/inArray").inArray ;
 var merge = require("./module/base/merge").merge ;
+var getMulitClass = require("./module/base/getMulitClass").getMulitClass ;
+var isNumber = require("./module/base/isNumber").isNumber ;
+var createUi = require("./module/api/createUi").createUi ;
 
 /**
  *  
@@ -58,6 +61,18 @@ tQuery.prototype = tQuery.elements = require("./module/api/elements").elements ;
 /* console debug */
 tQuery.prototype = tQuery.console = require("./module/api/console").console ;
 
+/* clear ui chain */
+tQuery.prototype = tQuery.clear = function()
+{
+    var resume = {} ;
+    var chains = ['id','tag','cls','chain'];
+    for(var i=0,len = chains.length; i< len; i++)
+    {
+            tQuery.UiChain(chains[i] , resume );    
+    }
+
+    return new tQuery.fn.init();    
+}
 
 tQuery.prototype = tQuery.fn  = {
     /**
@@ -86,6 +101,9 @@ tQuery.prototype = tQuery.fn  = {
             var cls_list = tQuery.UiChain('cls')    	|| {} ;
             var tQuery_list = tQuery.UiChain('chain') 	|| {} ;
             
+            
+            var current_page ;
+            
             // 略微特殊一点
             // 
             //{
@@ -100,6 +118,14 @@ tQuery.prototype = tQuery.fn  = {
             {
             	// new copy
                 var opt = tQuery.clone(obj);
+                var event = {};
+                
+                if(opt['event'])
+                {
+                    event = tQuery.clone(opt.event);   
+                    
+                    delete opt.event ; 
+                }
                 
                 if(opt['children'])
                 {
@@ -108,13 +134,31 @@ tQuery.prototype = tQuery.fn  = {
                 
                 tQuery_list[tQueryid]  = tQuery_list[tQueryid] || {} ;
                 tQuery_list[tQueryid]['parent'] = parent || "" ;
-                tQuery_list[tQueryid]['opt'] = opt ;
                 tQuery_list[tQueryid]['children'] =  tQuery_list[tQueryid]['children'] || [] ;
+                tQuery_list[tQueryid]['event'] =  event ;
+                // 添加event事件，event属性不做查找依据，可以直接添加到tQuerylist 中
+                for(var evt in opt )
+                {
+                    if ( tQuery.type(opt[evt] ) === "function" )
+                    {
+                        tQuery_list[tQueryid]['event'][evt] =  opt[evt] ;
+                        
+                        delete opt[evt] ;
+                    }
+                }
                 
                 if( tQuery_list[parent]) // 存在则更新父节点的子节点值
                 {
                     tQuery_list[parent]['children'].push( tQueryid ) ;
                 }
+
+                if( opt['event'])                
+                {
+                    delete opt.event ;
+                }
+                
+                tQuery_list[tQueryid]['opt'] = opt ;
+                
             }
             
             function pushTagList(tag,tid)
@@ -126,21 +170,19 @@ tQuery.prototype = tQuery.fn  = {
             function pushClsList(cls,tid)
             {
                 // 一个元素可能有多个cls
-                // 将cls切分
-                var arr = cls.split(" ") ;
-                console.log("clsarr",arr);
-                for(var  i = 0,len=arr.length;i<len;i++)
+                var clses = getMulitClass(cls);
+                for(var  i = 0,len=clses.length;i<len;i++)
                 {
-                	arr[i] = tQuery.trim(arr[i]);
-                    cls_list[arr[i]] = cls_list[arr[i]] || [] ;
-                    cls_list[arr[i]].push(tid);
+                    cls_list[clses[i]] = cls_list[clses[i]] || [] ;
+                    cls_list[clses[i]].push(tid);
                 }
             }
             
+            // id 是唯一的，有且只能有一个
             function pushidList(id,tid)
             {
-                id_list[id] = cls_list[id] || [] ;
-                id_list[id].push(tid);
+                id_list[id] = cls_list[id] || {} ;
+                id_list[id]  =  tid  ;
             }
             
             function gettQueryid()
@@ -175,6 +217,13 @@ tQuery.prototype = tQuery.fn  = {
                     
                     var tQueryid = gettQueryid(); // 当前对象的唯一标识符
                     
+                    // 初始化当前页
+                    if(!current_page)
+                    {
+                        current_page = tQueryid ;
+                    }
+                    
+                    
                     // 添加到 tQueryid 列表
                     pushtQueryidList( tQueryid , obj , parent );
                     
@@ -191,11 +240,13 @@ tQuery.prototype = tQuery.fn  = {
                     var clsAlias = ['cls',"className","class"] ; 
                     for(var alias in clsAlias )
                     {
-                        if( obj[alias] )
+                        if( obj[clsAlias[alias]] )
                         {
-                            pushClsList(obj[alias] , tQueryid );    // 这里要确认class名称是否大小写敏感
+                            pushClsList(obj[clsAlias[alias]] , tQueryid );    // 这里要确认class名称是否大小写敏感
                         }
                     }
+                    
+                    // 遍历，处理event
                     
                     /* 处理子element */
                     if( obj["children"] )
@@ -223,14 +274,14 @@ tQuery.prototype = tQuery.fn  = {
                 return handleUI(opt);
             }
             
-            
-            function createTiUi(opt)
+            function createUiChain(opt)
             {
-                create(opt);                
+                create(opt);
                 
                 addListToChain();   
                 
-                return tQuery.UiChain();        
+                createUi( tQuery.UiChain("chain") );
+                return tQuery(current_page);
             }
             
             function addListToChain()
@@ -248,20 +299,66 @@ tQuery.prototype = tQuery.fn  = {
 
             }
             
-            return createTiUi(opt) ; // return function
+            return createUiChain(opt) ; // return function
             
         })(opt);
     },
     
     init : function(selector,context)
     {
+        this.tQueryid ; //  当前处理对象的tQueryid 属性
+        
+        // Handle $(""), $(null), $(undefined), $(false)
+        if ( !selector ) {
+            return this;
+        }
+        
     	// handle layout object
     	if( type(selector) === "object" )
 		{
     		return tQuery.fn.create(selector , context );
 		}
     	
-        // handle #id
+    	// handle number internal use only 
+    	if( isNumber(selector) )
+    	{
+    	   if( tQuery.UiChain("chain")[selector] )      
+    	   {
+    	       this.tQueryid = selector ;
+    	       
+    	       return this ;
+    	   }
+    	   
+    	   /**DEBUG{{**/
+    	   else
+    	   {
+    	       tQuery.console.error( "UiChain chain has no tQueryid as " + selector );
+    	   }
+	       /**}}**/
+    	}
+    	
+    	// handle #id
+    	var match = /^(?:[^#<]*(<[\w\W]+>)[^>]*$|#([\w\-]*)$)/.exec("#id");
+    	if(match && match[2] )
+    	{
+    	   var id = match[2];
+    	   
+    	   if( tQuery.UiChain("id")[id] )
+    	   {
+                this.tQueryid = tQuery.UiChain("id")[id] ;
+                
+                return this ;      	       
+    	   }
+           /**DEBUG{{**/
+           else
+           {
+               tQuery.console.error( "UiChain id has no tQueryid as " + tQuery.UiChain("id")[id] + "and the id is " + id );
+           }
+           /**}}**/
+    	   
+    	}
+    	
+        //
     }
     
 };

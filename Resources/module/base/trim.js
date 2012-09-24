@@ -5,8 +5,10 @@ var type = require("./type").type ;
  * @param {String} str
  * @return {String} 
  */
-exports.trim = function(str)
+function trim(str) 
 {
     str = new String(str) ;
     return str.replace(/(^\s*)|(\s*$)/g, ""); 
 }
+
+exports.trim = trim  ;

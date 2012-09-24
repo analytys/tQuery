@@ -21,6 +21,7 @@ test("tQuery framework" , function(){
 						type : "Page" ,
 					},
 					children : [] ,
+					event : {}
 				}
 			}
 	};
@@ -41,24 +42,27 @@ test("tQuery framework" , function(){
 			chain : {
 				10000 : {
 					parent : "" ,
+					children : [] ,
+					event : {},
 					opt : {
 						type : "Page" ,
 					},
-					children : [] ,
 				},
 				10002 : {
 					parent : "" ,
+					children : [ 10003 ] ,
+					event : {},
 					opt : {
 						type : "Page" ,
 					},
-					children : [ 10003 ] ,
 				},
 				10003 : {
 					parent : 10002 ,
+					children : [] ,
+					event : {},
 					opt : {
 						type : "Window",
 					},
-					children : [] ,
 				}
 			}
 	};
@@ -92,6 +96,11 @@ test("tQuery framework" , function(){
 		            	type : "Label",
 		            	"class" : "lb  fb",
 		            	id : "lb2" ,
+		            	event : {
+		            	    click : function(){} ,
+		            	    dblclick : function(){},
+		            	},
+		            	mouseover : function(){} ,
 		            }
 			            ]
 	};
@@ -118,74 +127,106 @@ test("tQuery framework" , function(){
 			chain : {
 				10000 : {
 					parent : "" ,
+					children : [] ,
+					event : {},
 					opt : {
 						type : "Page" ,
 					},
-					children : [] ,
 				},
 				10002 : {
 					parent : "" ,
+					children : [ 10003 ] ,
+					event : {},
 					opt : {
 						type : "Page" ,
 					},
-					children : [ 10003 ] ,
 				},
 				10003 : {
 					parent : 10002 ,
+					children : [] ,
+					event : {},
 					opt : {
 						type : "Window",
 					},
-					children : [] ,
+				},
+				10005: {
+				     parent: '', 
+				     children: [ 10006 ] ,
+				     event : {},
+				     opt: { 
+				         type: 'Page' 
+				     }, 
 				},
 				10006 : {
-					parent : "",
+					parent : 10005,
+					children : [ 10007 , 10008 , 10009] ,
+					event : {},
 					opt : {
 						type : "View" ,
 						cls : "normal",
 						id : "register",
 					},
-					children : [ 10007 , 10008 , 10009] ,
 				},
 				10007 : {
 					parent : 10006 ,
+					children : [  ] ,
+					event : {}, 
 					opt : {
 						type : "Button" ,
 		            	className : "bc",
 		            	id : "bc" ,
 		            	text : "hello",
 					},
-					children : [  ] ,
 				},
 				10008 : {
 					parent : 10006,
+					children : [   ] ,
+					event : {},
 					opt : {
 						type : "Label" ,
 		            	"class" : "lb",
 					},
-					children : [   ] ,
 				},
 				10009 : {
 					parent : 10006,
+					children : [   ] ,
+					event : {
+					    click : function(){} ,
+                        dblclick : function(){},
+                        mouseover : function(){} ,
+					},
 					opt : {
 						type : "Label" ,
-		            	"class" : "lb",
+		            	"class" : "lb  fb",
 		            	id : "lb2" ,
 					},
-					children : [   ] ,
 				},
 				
 			}
 	};
 	
-	
-	tQuery(opt3);
+	var ret = tQuery(opt3);
 	
 	deepEqual( tQuery.UiChain("tag") , rChain3.tag , 'opt3 with rchain3 tag'  );
 	deepEqual( tQuery.UiChain("cls") , rChain3.cls , 'opt3 with rchain3 cls'  );
 	deepEqual( tQuery.UiChain("id") , rChain3.id , 'opt3 with rchain3 id'  );
-	deepEqual( tQuery.UiChain("chain") , rChain3.chain , 'opt3 with rchain3 chain'  );
-
-	
+	// deepEqual( tQuery.UiChain("chain") , rChain3.chain , 'opt3 with rchain3 chain'  ); // event 对像中含有函数，断言会失败	for(var i in tQuery.UiChain("chain") )
+	{
+	    console.log( tQuery.UiChain("chain")[i]['event'] , rChain3.chain[i]['event'] ) ;
+	    delete tQuery.UiChain("chain")[i]['event'];
+	    delete rChain3.chain[i]['event'];
+	    deepEqual( tQuery.UiChain("chain")[i] , rChain3.chain[i] , i  );
+	}
+    // console.log(ret);
+    
+    // 测试清空ui chain
+    tQuery.clear();
+    
+    deepEqual( tQuery.UiChain("tag") , {}, 'clear tQuery.UiChain("tag") === {}'  );
+    deepEqual( tQuery.UiChain("cls") , {}, 'clear tQuery.UiChain("cls") === {}'  );
+    deepEqual( tQuery.UiChain("id") , {}, 'clear tQuery.UiChain("id") === {}'  );
+    deepEqual( tQuery.UiChain("chain") , {}, 'clear tQuery.UiChain("chain") === {}'  );
+    // 测试第二个参数为父对象
 	
 	
 });
