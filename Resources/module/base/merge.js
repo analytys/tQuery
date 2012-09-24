@@ -1,4 +1,5 @@
 var type = require("./type").type ;
+var clone = require("./clone").clone ;
 
 /**
  * 将n的属性复制给o
@@ -11,18 +12,14 @@ exports.merge = function(o,n)
     /**DEBUG{{**/
     if( type( o ) !== "object" || type( n ) !== "object")
     {
-        console.log(  "function merge expected o {object} and n {object} , the arguments are " , arguments ) ;    }
+        console.log(  "debug info : function merge expected o {object} and n {object} , the arguments are " , arguments ) ;    }
     /**}}**/
    
 
     o = type(o) === "object" ? o : {};
     n = type(n) === "object" ? n : {};
 
-    var obj = {} ;
-    for (var p in o)
-    {
-        obj[p] = o[p];
-    }
+    var obj = clone(o) ; // a new copy
 
     for (var q in n)
     {

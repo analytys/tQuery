@@ -2,8 +2,11 @@
  * tQuery framework simple  
  */
 
-var isObject = require("module/base/isObject").isObject ;
-var isArray = require("module/base/isArray").isArray ;
+var isObject = require("./module/base/isObject").isObject ;
+var isArray = require("./module/base/isArray").isArray ;
+var type = require("./module/base/type").type ;
+var inArray = require("./module/base/inArray").inArray ;
+var merge = require("./module/base/merge").merge ;
 
 /**
  *  
@@ -15,8 +18,8 @@ tQuery = function(selector,context)
     return new tQuery.fn.init(selector,context); 
 };
 
-//Ui Chain Object
-tQuery.prototype.UiChain = (function() {
+//Ui Chain Object 以Page的方式来管理，这个chain始终存在不需要清除
+tQuery.prototype = tQuery.UiChain = (function() {
     // 创建一个隐藏的object, 这个object持有一些数据
     // 从外部是不能访问这个object的
     var data = {};
@@ -24,35 +27,47 @@ tQuery.prototype.UiChain = (function() {
     return function(key, val){
         if (val === undefined)
         {
-            return data[key] || {};
+            return data[key] ;
         } // get
         else
         {
-            data[key] = val ; 
+            data[key] =  val ; 
             
             return data[key] ;
         } // set
     };
 })();
 
+/* tQuery type method */
+tQuery.prototype = tQuery.type =  type ;
+tQuery.prototype = tQuery.inArray = inArray ;
+tQuery.prototype = tQuery.isObject = isObject ;
+tQuery.prototype = tQuery.merge = merge ;
 
-tQuery.prototype.clone = function(myObj)
-{
-    myObj = isObject(myObj) ? myObject : {};
-    var myNewObj = new Object();  
-        
-    for(var i in myObj)
-    {
-        myNewObj[i] = tQuery.clone(myObj[i]); // 这里一个明显的bug，参数验证如果不是对象，返回一个空对象  
-    }
-    
-    return myNewObj;  
- 
-}
 
-tQuery.prototype.fn = {
+/* clone method */
+tQuery.prototype = tQuery.clone = require("./module/base/clone").clone ;
+
+/* trim method */
+tQuery.prototype = tQuery.trim = require("./module/base/trim").trim ;
+
+
+/* ui elements */
+tQuery.prototype = tQuery.elements = require("./module/api/elements").elements ;
+
+/* console debug */
+tQuery.prototype = tQuery.console = require("./module/api/console").console ;
+
+
+tQuery.prototype = tQuery.fn  = {
     /**
      * 创建UI布局对象
+     * 
+     * 1. 创建的UI布局对象是全局的
+     * 2. 先创建的和后创建的，是同一个全局的对象，后创建的合并到先创建的chain中
+     * 3. 可以方便的测试
+     * 4. create 方法返回一个tQuery 对象，可以访问tQuery对象的所有方法
+     * 
      * @param {Object} opt
      * @return {Object}
      */
@@ -60,14 +75,16 @@ tQuery.prototype.fn = {
     {
         return (function(opt)
         {
-            // set default tQueryid value
-            var tQueryid  = 10000 ; 
+        	// 这5个变量，注册到全局(tQuery)
+            // get tQueryid value
+        	var tQueryid  = tQuery.UiChain("tQueryid") || 9999 ; 
 
-            /* set ui chain list */        
-            var tag_list = tQuery.UiChain('tag')    || {} ;
-            var id_list = tQuery.UiChain('tag')     || {} ;
-            var cls_list = tQuery.UiChain('tag')    || {} ;
-            var tQuery_list = tQuery.UiChain('tag') || {} ;
+            /* set ui chain list */
+            var tag_list = tQuery.UiChain('tag')    	|| {} ;       
+            
+            var id_list = tQuery.UiChain('id')      	|| {} ;
+            var cls_list = tQuery.UiChain('cls')    	|| {} ;
+            var tQuery_list = tQuery.UiChain('chain') 	|| {} ;
             
             // 略微特殊一点
             // 
@@ -81,11 +98,8 @@ tQuery.prototype.fn = {
             //}
             function pushtQueryidList(tQueryid , obj , parent)
             {
-                var opt = {} ; // new copy
-                for(var i in obj )
-                {
-                    opt[i] = obj[i] ;
-                }
+            	// new copy
+                var opt = tQuery.clone(obj);
                 
                 if(opt['children'])
                 {
@@ -97,12 +111,11 @@ tQuery.prototype.fn = {
                 tQuery_list[tQueryid]['opt'] = opt ;
                 tQuery_list[tQueryid]['children'] =  tQuery_list[tQueryid]['children'] || [] ;
                 
-                if( tQuery_list[parent]) // 存在说明则更新父节点的子节点值
+                if( tQuery_list[parent]) // 存在则更新父节点的子节点值
                 {
                     tQuery_list[parent]['children'].push( tQueryid ) ;
                 }
             }
-            
             
             function pushTagList(tag,tid)
             {
@@ -114,11 +127,13 @@ tQuery.prototype.fn = {
             {
                 // 一个元素可能有多个cls
                 // 将cls切分
-                var arr = cls.split("") ;
+                var arr = cls.split(" ") ;
+                console.log("clsarr",arr);
                 for(var  i = 0,len=arr.length;i<len;i++)
                 {
-                    cls_list[cls] = cls_list[cls] || [] ;
-                    cls_list[cls].push(tid);
+                	arr[i] = tQuery.trim(arr[i]);
+                    cls_list[arr[i]] = cls_list[arr[i]] || [] ;
+                    cls_list[arr[i]].push(tid);
                 }
             }
             
@@ -133,18 +148,6 @@ tQuery.prototype.fn = {
                 return ++tQueryid ;
             };
             
-            /*****for test *****/
-            function trim(str)
-            {
-                return str ;
-            }
-            
-            function L(str)
-            {
-                return str ;
-            }
-            /****** for test end *****/
-            
             function handleChildren(children , parent )
             {
                 children = children ? children : [] ; // 判断是否数组
@@ -156,20 +159,18 @@ tQuery.prototype.fn = {
             
             function handleUI( obj , parent )
             {
-                    var types = ["page","window","view","button"] ;
-            
                     // handle type 
                     if( !obj["type"] )
                     {
                         // log error
-                        return Ti.API.error("type is required for each ui element");
+                        return tQuery.console.error("type is required for each ui element");
                     }
                     
                     // Unrecognized type
-                    if( -1 == tQuery.inArray(obj.type.toLowerCase(),types) )
+                    if( -1 === tQuery.inArray(obj.type , tQuery.elements ) )
                     {
                         // log error
-                        return Ti.API.error("Unrecognized type");
+                        return tQuery.console.error("Unrecognized type " + obj.type );
                     }
                     
                     var tQueryid = gettQueryid(); // 当前对象的唯一标识符
@@ -178,12 +179,12 @@ tQuery.prototype.fn = {
                     pushtQueryidList( tQueryid , obj , parent );
                     
                     // 添加到tag列表
-                    pushTagList(obj.type.toLowerCase() , tQueryid );
+                    pushTagList(obj.type , tQueryid );
                     
                     // 添加到id列表
                     if( obj["id"] )
                     {
-                        pushidList(obj.id.toLowerCase() , tQueryid );
+                        pushidList(obj.id , tQueryid );
                     }
                     
                     // 添加到cls列表
@@ -209,11 +210,11 @@ tQuery.prototype.fn = {
                 opt = (opt && tQuery.type(opt) === "object") ? opt : {} ; 
                 
                 // 默认给opt添加一个page父对象
-                /* 以page的方式来管理Ui，方便不用的Ui及时创建或者销毁 */
-                if( !opt["type"] || opt.type != "page" )
+                /* 以Page的方式来管理Ui，方便不用的Ui及时创建或者销毁 */
+                if( !opt["type"] || opt.type != "Page" )
                 {
                     opt = {
-                            type: "page" ,
+                            type: "Page" ,
                             children : [ opt ] , // children 数组
                     };
                 }
@@ -242,6 +243,8 @@ tQuery.prototype.fn = {
                 tQuery.UiChain('tag', tag_list);
                 
                 tQuery.UiChain('chain' , tQuery_list );
+                
+                tQuery.UiChain('tQueryid', gettQueryid() ); // set new tQueryid 
 
             }
             
@@ -250,8 +253,14 @@ tQuery.prototype.fn = {
         })(opt);
     },
     
-    init : function(selector,contest)
+    init : function(selector,context)
     {
+    	// handle layout object
+    	if( type(selector) === "object" )
+		{
+    		return tQuery.fn.create(selector , context );
+		}
+    	
         // handle #id
     }
     
@@ -259,4 +268,4 @@ tQuery.prototype.fn = {
 
 
 
-export.tQuery = tQuery ;
+exports.tQuery = tQuery ;
