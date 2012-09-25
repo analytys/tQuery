@@ -15,29 +15,57 @@ else
 	var apiPath = resourcePath  + "module/api/";
 }
 
-runner.run({
-  code : basePath + 'type.js',
-  tests : './type.js'
-});
+ 
 
-runner.run({
-  code : basePath + 'trim.js',
-  tests : './trim.js'
-});
-
-runner.run({
-  code : basePath + 'merge.js',
-  tests : './merge.js'
-});
-runner.run({
-    code : basePath + 'isObject.js',
-    tests : './isObject.js',
-});
+runner.run([
+            {
+			  code : basePath + 'type.js',
+			  tests : './type.js'
+			},
+			{
+				  code : basePath + 'trim.js',
+				  tests : './trim.js'
+			},
+			{
+				  code : basePath + 'merge.js',
+				  tests : './merge.js'
+			},
+			{
+			    code : basePath + 'isObject.js',
+			    tests : './isObject.js',
+			},
+			{
+			    code : basePath + 'isArray.js',
+			    tests : './isArray.js',
+			},
+			{
+				  code : basePath + 'style.js',
+				  tests : './style.js'
+			},
+			{
+				  code : basePath + 'getMulitClass.js',
+				  tests : './getMulitClass.js'
+			},
+			{
+				  code : basePath + 'isNumber.js',
+				  tests : './isNumber.js'
+			},
+			{
+				  code : basePath + 'unique.js',
+				  tests : './unique.js'
+			},
+			{
+				  code : basePath + 'intersection.js',
+				  tests : './intersection.js'
+			},
+			{
+				code : resourcePath + "tQuery.js" ,
+				tests : "./tQuery.js"
+			},
+		] , function(err, report) {
+	        	console.dir(report);
+	    });
 
-runner.run({
-    code : basePath + 'isArray.js',
-    tests : './isArray.js',
-});
 
 // 命名空间有冲突
 //runner.run({
@@ -46,27 +74,6 @@ runner.run({
 //});
 
 
-runner.run({
-  code : basePath + 'style.js',
-  tests : './style.js'
-});
-
-runner.run({
-  code : basePath + 'getMulitClass.js',
-  tests : './getMulitClass.js'
-});
-
-runner.run({
-  code : basePath + 'isNumber.js',
-  tests : './isNumber.js'
-});
-
-
-/* test tQuery */
-runner.run({
-	code : resourcePath + "tQuery.js" ,
-	tests : "./tQuery.js"
-});
 
 
 

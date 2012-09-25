@@ -21,4 +21,4 @@ exports.inArray = function( elem, arr, i ) {
 	}
 
 	return -1;
-}
+};

@@ -3,6 +3,9 @@
  */
 
 test("tQuery framework" , function(){
+
+	/*
+	ok( tQuery.istQueryObject( tQuery() ) , 'tQuery.istQueryObject( tQuery() )' );
 	
 	var opt = {
 		type: "Page" ,	
@@ -120,9 +123,9 @@ test("tQuery framework" , function(){
 				fb : [10009] ,
 			},
 			id : {
-				register : [ 10006 ], 
-				bc : [ 10007 ],
-				lb2 : [ 10009 ],
+				register :  10006  , 
+				bc :   10007 ,
+				lb2 :  10009  ,
 			},
 			chain : {
 				10000 : {
@@ -205,7 +208,7 @@ test("tQuery framework" , function(){
 			}
 	};
 	
-	var ret = tQuery(opt3);
+	tQuery(opt3);
 	
 	deepEqual( tQuery.UiChain("tag") , rChain3.tag , 'opt3 with rchain3 tag'  );
 	deepEqual( tQuery.UiChain("cls") , rChain3.cls , 'opt3 with rchain3 cls'  );
@@ -217,16 +220,62 @@ test("tQuery framework" , function(){
 	    delete rChain3.chain[i]['event'];
 	    deepEqual( tQuery.UiChain("chain")[i] , rChain3.chain[i] , i  );
 	}
-    // console.log(ret);
+    // console.log(ret);	 */
     
     // 测试清空ui chain
     tQuery.clear();
     
-    deepEqual( tQuery.UiChain("tag") , {}, 'clear tQuery.UiChain("tag") === {}'  );
-    deepEqual( tQuery.UiChain("cls") , {}, 'clear tQuery.UiChain("cls") === {}'  );
-    deepEqual( tQuery.UiChain("id") , {}, 'clear tQuery.UiChain("id") === {}'  );
-    deepEqual( tQuery.UiChain("chain") , {}, 'clear tQuery.UiChain("chain") === {}'  );
-    // 测试第二个参数为父对象
-	
+    deepEqual( tQuery.UiChain("tag") , undefined , 'clear tQuery.UiChain("tag") === undefined '  );
+    deepEqual( tQuery.UiChain("cls") , undefined  , 'clear tQuery.UiChain("cls") === undefined '  );
+    deepEqual( tQuery.UiChain("id") , undefined , 'clear tQuery.UiChain("id") === undefined '  );
+    deepEqual( tQuery.UiChain("chain") , undefined , 'clear tQuery.UiChain("chain") === undefined '  );
+    deepEqual( tQuery.UiChain("tQueryid") ,  9999 , 'tQuery.UiChain("tQueryid") ===  9999'  );
+           // 测试第二个参数为父对象
+    var opt4 = {
+    		type:"Window",
+    		id : "theid",
+    };
+    var a = tQuery(opt4);
+    
+    var opt5 = {
+    		type: "Label",
+    		text : "Hello",
+    };
+    
+    tQuery(opt5, a ) ;
+    
+    var rChain5 = {
+    		10000 : {
+    			parent : "",
+    			children : [10001],
+    			event : {},
+    			opt : {
+    				type: "Page",
+    			},
+    		},
+    		10001 : {
+    			parent : 10000 ,
+    			children : [ 10003 ],
+    			event : {},
+    			opt : {
+    				type : "Window",
+    				id : "theid" ,
+    			}
+    		},
+    		
+    		10003 : {
+    			parent : 10001,
+    			children : [],
+    			event : {},
+    			opt : {
+    				type : "Label",
+    				text : "Hello",
+    			}
+    		}
+    };
+    
+    ok( tQuery.istQueryObject(a) , 'tQuery.istQueryObject(tQuery(opt4)');
+    
+    deepEqual( tQuery.UiChain("chain") , rChain5 , '第二个参数为父对象 opt4 with rChain5');
 	
 });
