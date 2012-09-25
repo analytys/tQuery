@@ -1,5 +1,7 @@
 // @link : http://blog.sina.com.cn/s/blog_5380a47901014mid.html
-if(process.platform == 'win32')
+
+var process = process || { platform : "win32" }  ;
+if( process.platform == 'win32')
 {
 	var runner = require("C:\\Users\\tocky\\node_modules\\qunit");
 	var basePath = "D:\\Project\\tQuery\\Resources\\module\\base\\" ;
@@ -14,8 +16,6 @@ else
 	var basePath = resourcePath  + "module/base/";
 	var apiPath = resourcePath  + "module/api/";
 }
-
- 
 
 runner.run([
             {

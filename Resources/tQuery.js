@@ -67,6 +67,23 @@ tQuery.prototype = tQuery.istQueryObject = function(obj)
 	return obj instanceof tQuery.fn.init ;
 };
 
+tQuery.prototype = tQuery.data = function( obj , key , value)
+{
+    if(!tQuery.istQuryObject(obj) )
+    {
+        tQuery.console.error("tQuery.data expect obj as tQuery object");
+        return new tQuery.fn.init();
+    }
+    
+    if(!key)
+    {
+        tQuery.console.error("tQuery.data expect key valid");
+        return new tQuery.fn.init();
+    }
+    
+    return obj.data( key , value );
+}
+
 /* clear ui chain */
 tQuery.prototype = tQuery.clear = function()
 {
@@ -350,6 +367,8 @@ tQuery.prototype = tQuery.fn  = {
         
         this.selector = selector ; // 当前对象的选择器
         
+        this.store  ; // 存储数据
+        
         // TODO 暂时还不支持 第二个参数制定父节点，在父节点中查找子节点
         // 第二个参数parent的类型必须是一个tQuery对象
         // 父节点中查找子节点   有可能是父父...节点
@@ -365,6 +384,17 @@ tQuery.prototype = tQuery.fn  = {
     		{
         		return tQuery.fn.create(selector , parent );
     		}
+        	
+        	// handle function
+        	/**
+        	 * tQuery(function($) {
+             *   // 你可以在这里继续使用$作为别名...
+             *   });
+             **/
+        	if( type(selector) === "function" )
+        	{
+        	    return selector(tQuery);
+        	}
         	
         	// handle number internal use only 
         	if( isNumber(selector) )
@@ -517,6 +547,105 @@ tQuery.prototype = tQuery.fn  = {
     	{
     		return this.length;
     	};
+    	
+    	/**
+    	 * 迭代tQuery对象的每一个元素 
+    	 * 
+    	 */
+    	this.each = function(callback)
+    	{
+    	    if( tQuery.type(callback) !== "function" )
+    	    {
+    	        tQuery.console.error("method each expect function as params")
+    	    }
+    	    
+    	    // 这里面this指针要指到遍历的对象
+    	    // TODO 这个方法内部暂未实现
+    	};
+    	
+    	/**
+    	 * 取得其中一个匹配的元素。 num表示取得第几个匹配的元素。
+    	 */
+    	this.get = function(index)
+    	{
+    	   index = Number(index) ;
+    	   if( this.context[index] ) 
+    	   {
+    	       return tQuery(this.context[index]) ;
+	       }  
+    	};
+    	
+    	/**
+    	 * 搜索匹配的元素，并返回相应元素的索引值，从0开始计数。
+    	 * 没有匹配到元素返回-1
+    	 * 参数obj必须是一个tQuery对象，取context的第一个元素进行查找
+    	 */
+    	this.index = function( obj )
+    	{
+    	    if( tQuery.istQueryObject(obj) && obj.context[0] )
+    	    {
+    	        return tQuery.inArray(obj.context[0] , this.context) ;
+    	    }
+    	    
+    	    return -1 ;
+    	};
+    	
+    	/**
+    	 * 在元素上存放数据,返回jQuery对象。
+    	 * 可以传入key-value格式的object
+    	 */
+    	this.data = function( key , value )
+    	{
+    	    if( tQuery.type(key) === "object" )
+    	    {
+    	        var obj = tQuery.clone(key);
+    	        for( var i in obj)
+    	        {
+    	            this.store[i] = obj[i] ;
+    	        }
+    	        
+    	        return ;
+    	    }
+    	    
+    	    if( value === "undefined" )
+    	    {
+    	        return this.store[key] ;
+    	    }
+
+    	    this.store[key] = value ;
+    	    
+    	    return this ;
+    	}
+    	
+    	/**
+    	 * 元素上移除存放的数据
+    	 * 参数可以是字符串，一维数组或者以空格分隔开的字符串 
+    	 */
+    	this.removeData = function()
+    	{
+    	    if( !arguments[0] )
+    	    {
+    	        return false ;
+    	    }
+    	    
+    	    var arr = type = tQuery.type( arguments[0] ) === "string" ? getMulitClass( arguments[0] ) : arguments[0] ; 
+
+            for(var i =0 , len = arr.length ; i < len ; i++)    	    
+            {
+                if( this.store[arr[i]])
+                {
+                    delete this.store[arr[i]];
+                }
+            }
+
+            this.store = tQuery.clone( this.store );
+                        
+    	    return this ;
+    	};
+    	
+    	
+    	this.queue = function(){};
+    	this.dequeue = function(){};
     	
     	return this.__construct(selector , parent ) ;
 
