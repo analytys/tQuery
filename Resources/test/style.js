@@ -17,7 +17,7 @@ test("给UI元件添加类css样式的属性",function(assert){
     var opt = {
         id : "username",
         title : "title",
-    }
+    };
     
     var ret = {
         id : "username",

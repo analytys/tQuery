@@ -1,20 +1,44 @@
 /**
  * tQuery framework simple  and easy
+ * 
+ * useage:
+ * app.js 
+ * (function(global){
+ * 		global.tQuery = global.$ = tQuery = $ = require("./tQuery").tQuery ; 
+ * })(this);
+ * 
+ * 
  */
 
-var isObject = require("./module/base/isObject").isObject ;
-var isArray = require("./module/base/isArray").isArray ;
-var type = require("./module/base/type").type ;
-var inArray = require("./module/base/inArray").inArray ;
-var merge = require("./module/base/merge").merge ;
-var getMulitClass = require("./module/base/getMulitClass").getMulitClass ;
-var isNumber = require("./module/base/isNumber").isNumber ;
-var createUi = require("./module/api/createUi").createUi ;
+
+
+
+
+
+
+
+
+
 
 /**
- *  
- * @param {Object} selector
- * @param {Object} context 父对象
+ * 遍历数组元素
+ * @param callback 回调函数
+ */
+Array.prototype.foreach = function( callback )
+{
+	for( var i = 0 ,len = this.length ; i< len ; i++)
+	{
+		callback.call( callback , i , this[i] , this );
+	}
+};
+
+
+
+/**
+ * tQuery 构造函数，返回tQuery对象 
+ * @param {Object} selector 选择器
+ * @param {Object} context 父tQuery对象
+ * @return {Object} tQuery
  */
 tQuery = function(selector,context)
 {
@@ -22,7 +46,7 @@ tQuery = function(selector,context)
 };
 
 //Ui Chain Object 以Page的方式来管理，这个chain始终存在不需要清除
-tQuery.prototype = tQuery.UiChain = (function() {
+tQuery.prototype = tQuery.UiChain = (function(){
     // 创建一个隐藏的object, 这个object持有一些数据
     // 从外部是不能访问这个object的
     var data = {};
@@ -41,25 +65,170 @@ tQuery.prototype = tQuery.UiChain = (function() {
     };
 })();
 
+/* console debug */
+tQuery.prototype = tQuery.console = {
+	    debug : typeof Ti !== "undefined" ? Ti.API.debug : 
+	    	( typeof console.debug === "undefined" ? console.log : console.debug )  ,  
+		error : typeof Ti !== "undefined" ? Ti.API.error : console.error  ,
+		info : typeof Ti !== "undefined" ?  Ti.API.info : console.info  ,
+		log : typeof Ti !== "undefined" ?   Ti.API.log : console.log  ,
+		warn : typeof Ti !== "undefined" ?  Ti.API.warn : console.warn  ,
+		trace : typeof Ti !== "undefined" ? Ti.API.trace : console.trace  ,
+		timestamp : typeof Ti !== "undefined" ? Ti.API.timestamp : 
+			( typeof console.timestamp === "undefined" ? console.log : console.timestamp)  ,
+};
+
+
 /* tQuery type method */
-tQuery.prototype = tQuery.type =  type ;
-tQuery.prototype = tQuery.inArray = inArray ;
-tQuery.prototype = tQuery.isObject = isObject ;
-tQuery.prototype = tQuery.merge = merge ;
+tQuery.prototype = tQuery.type =  function(obj)
+{
+    switch(obj)
+    {  
+        case null:  
+            return "null";  
+        case undefined:  
+            return "undefined";  
+    }  
+
+    var s = Object.prototype.toString.call(obj);
+    switch(s)
+    {  
+       case "[object String]":  
+           return "string";  
+       case "[object Number]":
+           return isNaN(obj) ? "NaN" : ( -1 != new String(obj).indexOf(".") ? "float" : "number" );  
+       case "[object Boolean]":  
+           return "boolean";  
+       case "[object Array]":  
+           return "array";  
+       case "[object Date]":  
+           return "date";  
+       case "[object Function]":  
+           return "function";  
+       case "[object RegExp]":  
+           return "regExp";  
+       case "[object Object]":  
+           return "object";  
+       default:
+           return s ;  
+   }
+}  ;
+
+
+tQuery.prototype = tQuery.inArray = function( elem, arr, i ) {
+	var len;
+
+	if ( tQuery.isArray(arr) && arr.length > 0 ) {
+		if ( Array.prototype.indexOf  ) {
+			return Array.prototype.indexOf.call( arr, elem, i );
+		}
+
+		len = arr.length;
+		i = i ? i < 0 ? Math.max( 0, len + i ) : i : 0;
+
+		for ( ; i < len; i++ ) {
+			if ( i in arr && arr[ i ] === elem ) {
+				return i;
+			}
+		}
+	}
+
+	return -1;
+};
+tQuery.prototype = tQuery.isObject = function( obj )
+{
+	return tQuery.type(obj) === "object" ;
+};
+
+tQuery.prototype = tQuery.isArray = function(array)
+{
+    return tQuery.type(array) === "array" ;
+};
+
+tQuery.prototype = tQuery.merge = function(o,n)
+{
+    o = tQuery.type(o) === "object" ? o : {};
+    n = tQuery.type(n) === "object" ? n : {};
+
+    var obj = tQuery.clone(o) ; // a new copy
+
+    for (var q in n)
+    {
+        obj[q] = n[q];
+    }
+
+    return obj ;
+};
 
 
 /* clone method */
-tQuery.prototype = tQuery.clone = require("./module/base/clone").clone ;
+tQuery.prototype = tQuery.clone = function(obj)
+{   
+    if( tQuery.isObject(obj) )
+	{
+        var cloneObj = new Object();
+        
+        for(var i in obj)
+        {
+        	cloneObj[i] = tQuery.clone( obj[i] );
+        }
+        
+        return cloneObj;
+	}
+    
+    var newObj = obj ;
+    return newObj ;
+} ;
+
+
 
 /* trim method */
-tQuery.prototype = tQuery.trim = require("./module/base/trim").trim ;
+tQuery.prototype = tQuery.trim = function(str)
+{
+    str = new String(str) ;
+    return str.replace(/(^\s*)|(\s*$)/g, ""); 
+};
 
 
 /* ui elements */
-tQuery.prototype = tQuery.elements = require("./module/api/elements").elements ;
-
-/* console debug */
-tQuery.prototype = tQuery.console = require("./module/api/console").console ;
+tQuery.prototype = tQuery.elements = new Array(
+		"Page" , 
+		"Window" , 
+		"AlertDialog",
+		"Animation",
+		"Button",
+		"ButtonBar",
+		"CoverFlowView",
+		"DashboardItem",
+		"DashboardView",
+		"EmailDialog",
+		"ImageView",
+		"Label",
+		"MaskedImage",
+		"Notification",
+		"OptionDialog",
+		"Picker",
+		"PickerColumn",
+		"PickerRow",
+		"ProgressBar",
+		"ScrollableView",
+		"ScrollView",
+		"SearchBar",
+		"Slider",
+		"Switch",
+		"Tab",
+		"TabbedBar", // DEPRECATED since 1.8.0
+		"TabGroup",
+		"TableView",
+		"TableViewRow",
+		"TableViewSection",
+		"TextArea",
+		"TextField",
+		"Toolbar" , //  DEPRECATED since 1.8.0
+		"View",
+		"WebView",
+		"Window"
+) ;
 
 /* istQueryObject */
 tQuery.prototype = tQuery.istQueryObject = function(obj)
@@ -67,22 +236,156 @@ tQuery.prototype = tQuery.istQueryObject = function(obj)
 	return obj instanceof tQuery.fn.init ;
 };
 
+
+tQuery.prototype = tQuery.getMulitClass = function(str)
+{
+    str = new String(str);
+    
+    if( str.indexOf(" ") === -1 )
+    {
+        return [str];
+    }
+    
+    var ret = [];
+    var arr = str.split(" ");
+    for(var i =0 , len = arr.length ;i < len ;i++ )
+    {
+        if( tQuery.trim(arr[i]).length <= 0  )
+        {
+            continue ;
+        }
+        
+        ret.push(arr[i]);
+    }
+    
+    return ret;
+};
+
+tQuery.prototype = tQuery.unique = function( args )  
+{  
+	args = tQuery.type(args) === "array" ? args : new Array();
+
+	var a = []; var l = args.length;   
+	for (var i = 0; i < l; i++)   
+	{   
+	   for (var j = i + 1; j < l; j++)  
+	   {   
+	       if (args[i] === args[j]) j = ++i;
+	   }   
+	   a.push(args[i]);   
+	}   
+	
+	return a;   
+};     
+
+
+tQuery.prototype = tQuery.intersection = function()
+{
+	var ret = new Array();
+	
+	jen = arguments.length ; 
+    if ( jen < 2 ) // 取交集至少要2个数组
+	{
+    	return ret ;
+	}
+    // 先合并成一个大数组，然后遍历这个大数组的每一个元素，判断这个元素在所有数组中的存在
+    n = 0 ;
+    while ( n < jen )
+    {   
+        var arg = arguments[n] ;
+    	n++ ;
+    	
+    	if( tQuery.type(arg) !== "array" )
+		{
+    		continue;
+		}
+    	
+    	for(var p = 0 , pen = arg.length ;  p < pen ;p++ )
+    	{
+    		ret.push(arg[p]);
+    	}
+    }
+
+    ret = tQuery.unique(ret);
+    
+    for( var i = 0 ,len = ret.length ;i < len ;i++)
+	{
+    	var exists = true ;
+    	for( var j = 0 ; j < jen ;j++)
+    	{
+    		if( -1 === tQuery.inArray( ret[i] , arguments[j] ) )
+    		{
+    			exists = false ;
+    			break ;
+    		}
+    	}
+    	
+    	if( !exists )
+    	{
+    		delete ret[i] ;
+    	}
+	}
+
+    var r = new Array();
+    for( var k in ret)
+	{
+    	if( ret[k] && tQuery.type(ret[k]) != "function" /* 数组有原型继承会导致这里出问题 */ ) 
+		{
+    		r.push( ret[k] );
+		}
+	}
+    
+    return r ;
+};
+
+tQuery.prototype = tQuery.isNumber = function(number)
+{
+    if( tQuery.type(number) === 'number' )
+    {
+        return true ;
+    }
+    
+    var a = number ;
+    number = Number(number);
+    
+    return a == number && /^\d+$/.test(number);
+};
+
+
+
+
+/**
+ * 在tQuery对象上存储一些数据
+ * @param {tQuery Object}obj
+ * @param {Object|String} key
+ * @param {String|Number|Array|Object|undefined} value
+ * @returns {tQuery Object}
+ */
 tQuery.prototype = tQuery.data = function( obj , key , value)
 {
-    if(!tQuery.istQuryObject(obj) )
+    if( !tQuery.istQueryObject(obj) )
     {
-        tQuery.console.error("tQuery.data expect obj as tQuery object");
+        tQuery.console.error("tQuery.data expect params obj as tQuery object ");
         return new tQuery.fn.init();
     }
     
     if(!key)
     {
-        tQuery.console.error("tQuery.data expect key valid");
+        tQuery.console.error("tQuery.data expect params key valid");
         return new tQuery.fn.init();
     }
     
     return obj.data( key , value );
-}
+};
+
+/** 
+ *  恢复使用别名$,和jQuery还是有很大区别的，
+ *  jQuery依赖window，而这里不依赖，别名在引入的时候人为指定
+ */
+tQuery.prototype = tQuery.noConflict = function( deep )
+{
+	return tQuery;
+};
 
 /* clear ui chain */
 tQuery.prototype = tQuery.clear = function()
@@ -128,7 +431,7 @@ tQuery.prototype = tQuery.fn  = {
             var tQuery_list = tQuery.UiChain('chain') 	|| {} ;
             
             
-            var current_page = undefined ;
+            var current_created_layout = undefined ;
             
             // 略微特殊一点
             // 
@@ -245,10 +548,10 @@ tQuery.prototype = tQuery.fn  = {
                     
                     var tQueryid = gettQueryid(); // 当前对象的唯一标识符
                     
-                    // 初始化当前页,如果有父对象则设父对象的page为当前页
-                    if(!current_page)
+                    // TODO 初始化当前页,如果有父对象则设父对象的layout为当前页
+                    if(!current_created_layout)
                     {
-                        current_page = tQueryid ;
+                        current_created_layout = tQueryid ;
                     }
                     
                     // 添加到 tQueryid 列表
@@ -301,24 +604,9 @@ tQuery.prototype = tQuery.fn  = {
                 			continue;
             			} 
                 		
-                		if ( tQuery.UiChain("chain")[tid]['opt']['type'] == "Page" )
-            			{
-                			tid = tQuery.UiChain("chain")[tid]['children'][0];
-            			}
+                		// 为减免更多不必要的麻烦，废除page
                 		handleUI( opt , tid ); 
             		}
-                }
-                else if( !parent && ( !opt["type"] || opt.type != "Page" )  )
-                {
-                	// 默认给opt添加一个Page父对象
-            		// 以Page的方式来管理Ui，方便不用的Ui及时创建或者销毁
-                	// 一个Page只能有一个子对象
-                    opt = {
-                            type: "Page" ,
-                            children : [ opt ] , // children 数组
-                    };
-
-                    return handleUI( opt );
                 }
                 else
             	{
@@ -333,9 +621,12 @@ tQuery.prototype = tQuery.fn  = {
                 
                 addListToChain();   
                 
-                // TODO 渲染样式表
-                createUi( tQuery.UiChain("chain") );
-                return tQuery(current_page);
+                // TODO 渲染样式表 调用ti api 创建ui对象
+                // 根据当前选项，创建Ti UI 如果有父对象，添加当前layout到父对象上
+                // 第二个参数是父对象{tQuery Object}，
+                // 如果没有指定第二个参数，则不需要添加到父对象上
+                this.__createTiUi( current_created_layout , parent );
+                return tQuery(current_created_layout);
             }
             
             function addListToChain()
@@ -358,6 +649,7 @@ tQuery.prototype = tQuery.fn  = {
         })(opt , parent );
     },
     
+    // TODO jQuery的选择器太强大了，还有很多需要实现支持的
     init : function(selector, parent)
     {
     	// The default length of a tQuery object is 0
@@ -366,8 +658,6 @@ tQuery.prototype = tQuery.fn  = {
         this.context ; //  当前处理对象环境
         
         this.selector = selector ; // 当前对象的选择器
-        
-        this.store  ; // 存储数据
         
         // TODO 暂时还不支持 第二个参数制定父节点，在父节点中查找子节点
         // 第二个参数parent的类型必须是一个tQuery对象
@@ -380,7 +670,7 @@ tQuery.prototype = tQuery.fn  = {
             }
 
             // handle layout object 以后可能会添加xml布局支持
-        	if( type(selector) === "object" )
+        	if( tQuery.type(selector) === "object" )
     		{
         		return tQuery.fn.create(selector , parent );
     		}
@@ -391,13 +681,13 @@ tQuery.prototype = tQuery.fn  = {
              *   // 你可以在这里继续使用$作为别名...
              *   });
              **/
-        	if( type(selector) === "function" )
+        	if( tQuery.type(selector) === "function" )
         	{
         	    return selector(tQuery);
         	}
         	
         	// handle number internal use only 
-        	if( isNumber(selector) )
+        	if( tQuery.isNumber(selector) )
         	{
         	   if( tQuery.UiChain("chain")[selector] )
         	   {
@@ -516,7 +806,84 @@ tQuery.prototype = tQuery.fn  = {
     			this.__getChildren( obj.children[i] , children );
 			}
     	};
+    	
+    	/**
+    	 * 获取ti对象，返回数组
+    	 */
+    	this.__getTiObject  = function()
+    	{
+    		var ret = new Array();
+    		if( this.context )
+			{
+    			for( var i =0 ; i < this.length ; i++)
+				{
+    				var obj = this.__getUiChainObject( this.context[i] );
+    				if( obj && obj.ti )
+					{
+    					ret.push( obj.ti );
+					}
+				}
+			}
+    		
+    		return ret ;
+    	};
+    	
+    	/**
+    	 * 获取UiChain 中chain链里的对应tQueryid 对象
+    	 */
+    	this.__getUiChainObject = function( tQueryid , key )
+    	{
+    		if( typeof key === "undefined" )
+    		{
+    			return tQuery.UiChain("chain")[tQueryid] ;
+    		}
+    		
+    		return tQuery.UiChain("chain")[tQueryid][key] ;
+    	};
 
+    	/**
+    	 * 设置ui chain中chain链里对应tQueryid 对象的值
+    	 * @param tQueryid
+    	 * @param value
+    	 */
+    	this.__setUiChainObject = function( tQueryid , key , value )
+    	{
+    		if( typeof key === "undefined" )
+    		{
+    			tQuery.console.error( "internal method __setUiChainObject expect params key as valid" );
+    			return false ;
+    		}
+    		
+    		tQuery.UiChain("chain")[tQueryid][key] = value ;
+    		
+    	};
+    	
+    	/**
+    	 * 调用ti api 创建ui对象
+    	 * 根据当前选项，创建Ti UI 如果有父对象，添加当前layout到父对象上
+    	 * 第二个参数是父对象{tQuery Object}，
+    	 * 如果没有指定第二个参数，则不需要添加到父对象上
+    	 * 
+    	 * @param {Number} current_created_layout  当前创建的layout tQueryid
+    	 * @param {tQuery Object} parent 父对象
+    	 * @return 
+    	 */
+    	this.__createTiUi = function(current_created_layout , parent)
+    	{
+    		// 先创建，后添加
+    		while( current_created_layout  )
+    		{
+    			var type = tQuery.UiChain("chain")[current_created_layout]['type'] ;
+    			var children = tQuery.UiChain("chain")[current_created_layout]['children'] ;
+    		}
+    		
+    		if( tQuery.istQueryObject(parent) )
+    		{
+    			
+    		}
+    		
+    		
+    	};
     	
     	/**
     	 * child 是 tQueryid
@@ -556,7 +923,7 @@ tQuery.prototype = tQuery.fn  = {
     	{
     	    if( tQuery.type(callback) !== "function" )
     	    {
-    	        tQuery.console.error("method each expect function as params")
+    	        tQuery.console.error("method each expect function as params");
     	    }
     	    
     	    // 这里面this指针要指到遍历的对象
@@ -596,30 +963,81 @@ tQuery.prototype = tQuery.fn  = {
     	 */
     	this.data = function( key , value )
     	{
+    		if( !key )
+			{
+    			tQuery.console.error( "method data expect params key as valid");
+    			return this ;
+			}
+    		
+    		if( !this.context || this.context.length <= 0 )
+    		{
+    			return this ;
+    		}
+    		
     	    if( tQuery.type(key) === "object" )
     	    {
     	        var obj = tQuery.clone(key);
-    	        for( var i in obj)
-    	        {
-    	            this.store[i] = obj[i] ;
-    	        }
-    	        
-    	        return ;
+
+    	        this.context.foreach(function(i , tQueryid ){
+    	        	var transObj = tQuery(tQueryid); 
+    	        	var to = transObj.__getUiChainObject(tQueryid , 'data' ) || {} ;
+    	        	to = tQuery.merge( to  , obj );
+
+    	        	transObj.__setUiChainObject( tQueryid , 'data' , to );
+    	        });
+
+    	        return this;
     	    }
     	    
-    	    if( value === "undefined" )
+    	    
+    	    
+    	    
+    	    if( typeof value === "undefined" )
     	    {
-    	        return this.store[key] ;
+    	    	// 只支持一个元素取值，这个要有良好的规定，否则造成混乱
+    	    	// 默认取第一个元素
+    	    	var data = this.__getUiChainObject(this.context[0] , "data" ) || {} ;
+	    		return data[key] ;
+	    		
+	    		
+//    	    	if( this.length === 1)
+//	    		{
+//    	    		var data = this.__getUiChainObject(this.context[0] , "data" ) || {} ;
+//    	    		return data[key] ;	
+//	    		}
+//    	    	else
+//    	    	{
+//    	    		var ret = new Array();
+//    	    		var global = this ;
+//    	    		this.context.foreach(function(i, tQueryid ){
+//    	    			data = global.__getUiChainObject(tQueryid, 'data') || {} ;
+//    	    			if( data[key] )
+//    	    			{
+//    	    				ret.push( data[key] );
+//    	    			}
+//    	    		});
+//    	    		
+//    	    		return ret ;
+//    	    	}
+    	    	
     	    }
 
-    	    this.store[key] = value ;
-    	    
-    	    return this ;
-    	}
+    	    this.context.foreach(function(i , tQueryid  ){
+    	    	var transObj = tQuery(tQueryid); 
+	        	var to = transObj.__getUiChainObject(tQueryid , 'data' ) || {} ;
+	        	to[key] = value ;
+
+	        	transObj.__setUiChainObject( tQueryid , 'data' , to );
+	        });
+
+    	    return this;
+    	};
     	
     	/**
     	 * 元素上移除存放的数据
     	 * 参数可以是字符串，一维数组或者以空格分隔开的字符串 
+    	 * @param {String|Array	}
+    	 * @return {tQuery Object}
     	 */
     	this.removeData = function()
     	{
@@ -628,24 +1046,106 @@ tQuery.prototype = tQuery.fn  = {
     	        return false ;
     	    }
     	    
-    	    var arr = type = tQuery.type( arguments[0] ) === "string" ? getMulitClass( arguments[0] ) : arguments[0] ; 
+    	    var arr = type = tQuery.type( arguments[0] ) === "string" ? 
+    	    		getMulitClass( arguments[0] ) : arguments[0] ; 
 
-            for(var i =0 , len = arr.length ; i < len ; i++)    	    
-            {
-                if( this.store[arr[i]])
-                {
-                    delete this.store[arr[i]];
-                }
-            }
-
-            this.store = tQuery.clone( this.store );
+    	    var global = this ;
+    	    
+    	    this.context.foreach(function( i , tQueryid ){
+    	    	var data = global.__getUiChainObject(tQueryid, 'data' );
+        	    arr.foreach(function(j , ele ){
+        	    	if( data[ele] )
+    	    		{
+        	    		delete data[ele];
+    	    		}
+        	    });
+        	    
+        	    global.__setUiChainObject(tQueryid, 'data', data );
+    	    });
                         
     	    return this ;
     	};
     	
-    	
+    	// TODO 队列方法暂未实现
     	this.queue = function(){};
     	this.dequeue = function(){};
+    	this.clearQueue = function(){};
+    	
+    	/**
+    	 * 非常重要，设置获取Ti元素的属性全部要通过这个来进行
+    	 * 与ti 的ui api紧密相关
+    	 * 1.设置的时候需要同步更改ui chain中对应元素的属性，然后调用ti的方法进行设置
+		 *   考虑ing，设置的时候是否可以不用关系ui chain中对应元素的属性，对ti对象操作进行设置
+    	 * 2.获取需要直接调用ti的方法进行获取
+    	 * TODO 不知道能不能这样直接获取还是必须得调用ti对象对应的方法才能获取和设置
+    	 */
+    	this.attr = function(key , value)
+    	{
+    		if( !key )
+			{
+    			return tQuery.console.error( "method attr expect key valid !" );
+			}
+
+    		if( typeof value === "undefined" )
+			{
+    			// Get
+    			var ret = new Array()	;
+    			this.__getTiObject.foreach( function( i , ele	){
+    				var obj = {};
+    				for( var p in ele)
+    				{
+    					// TODO 这里需要考虑对象的方式是否会添加进来
+    					obj[p] = ele[p] ;
+    				}
+    				
+    				ret.push( obj );
+    			});
+    			
+    			return ret ;
+			}
+    		
+    		// Set mulit
+    		if( typeof key === "object" )
+    		{
+    			var obj = tQuery.clone( key );
+				this.__getTiObject.foreach( function(i , ele){
+	    			for( var k in obj )
+	    			{
+	    				ele[k] = obj[k];
+	    			}
+				} );
+
+    			
+    			return this ;
+    		}
+    		
+    		// Set key = value 
+			this.__getTiObject.foreach( function( i , ele	){
+				ele[key] = value ;
+			});
+
+			return this ;
+    	};
+    	
+    	/**
+    	 * 给元素添加css类名(需要更新元素样式)
+    	 * @param {String} className 一个或者多个要添加的类名，以空格分隔
+    	 */
+    	this.addClass = function(className)
+    	{
+    		className = className || "";
+    		if( !className || tQuery.type(className) !== "string" )
+    		{
+    			tQuery.console.error("medthod addClass expect className as string valid");
+    		}
+    		// 需要更新cls chain
+    		// 重新设置ti对象对应样式的值
+    		// TODO 设置css样式是重要的一部分
+    		this.context.foreach( function( i , ele ){
+    			
+//    			tQuery(ele)
+    		});
+    	};
     	
     	return this.__construct(selector , parent ) ;
 
