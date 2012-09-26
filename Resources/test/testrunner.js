@@ -25,12 +25,10 @@ runner.run([
             		code : resourcePath + "tQuery.js",
             		tests : testPath + "tQuery_function.js",
             	},
-            	/*
             	{
             		code : resourcePath + "tQuery.js",
             		test : testPath + "tQuery_method.js",
             	},
-            	*/
             ]	, function(err, report) {
  					console.dir(report);
 				}

@@ -65,18 +65,74 @@ tQuery.prototype = tQuery.UiChain = (function(){
     };
 })();
 
+/* ui elements */
+tQuery.prototype = tQuery.elements = new Array(
+        "Window" , 
+        "AlertDialog",
+        "Animation",
+        "Button",
+        "ButtonBar",
+        "CoverFlowView",
+        "DashboardItem",
+        "DashboardView",
+        "EmailDialog",
+        "ImageView",
+        "Label",
+        "MaskedImage",
+        "Notification",
+        "OptionDialog",
+        "Picker",
+        "PickerColumn",
+        "PickerRow",
+        "ProgressBar",
+        "ScrollableView",
+        "ScrollView",
+        "SearchBar",
+        "Slider",
+        "Switch",
+        "Tab",
+        "TabbedBar", // DEPRECATED since 1.8.0
+        "TabGroup",
+        "TableView",
+        "TableViewRow",
+        "TableViewSection",
+        "TextArea",
+        "TextField",
+        "Toolbar" , //  DEPRECATED since 1.8.0
+        "View",
+        "WebView",
+        "Window"
+) ;
+
+
 /* console debug */
 tQuery.prototype = tQuery.console = {
-	    debug : typeof Ti !== "undefined" ? Ti.API.debug : 
-	    	( typeof console.debug === "undefined" ? console.log : console.debug )  ,  
-		error : typeof Ti !== "undefined" ? Ti.API.error : console.error  ,
-		info : typeof Ti !== "undefined" ?  Ti.API.info : console.info  ,
-		log : typeof Ti !== "undefined" ?   Ti.API.log : console.log  ,
-		warn : typeof Ti !== "undefined" ?  Ti.API.warn : console.warn  ,
-		trace : typeof Ti !== "undefined" ? Ti.API.trace : console.trace  ,
-		timestamp : typeof Ti !== "undefined" ? Ti.API.timestamp : 
-			( typeof console.timestamp === "undefined" ? console.log : console.timestamp)  ,
+        debug : function(){
+                return typeof Ti !== "undefined" ? Ti.API.debug.call( Ti.API , arguments[0] ) :
+                 ( typeof console.debug === "undefined" ? console.log : console.debug )  ;
+            },  
+        // error : typeof Ti !== "undefined" ? function(){Ti.API.error.apply( Ti.API.error, arguments); }: console.error  ,
+        error : function(){
+            return typeof Ti !== "undefined"  ? Ti.API.error.call( Ti.API , arguments[0] ) : console.error ;
+        },
+        info : function(){
+            return typeof Ti !== "undefined" ?  Ti.API.info.call( Ti.API , arguments[0] ) : console.info  ;
+        },
+        log : function(){
+            return typeof Ti !== "undefined" ?   Ti.API.log.call( Ti.API , arguments[0] ) : console.log ;
+        },
+        warn : function(){
+            return  typeof Ti !== "undefined" ?  Ti.API.warn.call( Ti.API , arguments[0] ) : console.warn  ;
+         },
+        trace : function(){
+            return typeof Ti !== "undefined" ? Ti.API.trace.call( Ti.API , arguments[0] ) : console.trace  ;
+        },
+        timestamp : function(){
+            return typeof Ti !== "undefined" ? Ti.API.timestamp.call( Ti.API , arguments[0] ) : 
+            ( typeof console.timestamp === "undefined" ? console.log : console.timestamp)  ;
+        },
 };
+
 
 
 /* tQuery type method */
@@ -190,45 +246,6 @@ tQuery.prototype = tQuery.trim = function(str)
 };
 
 
-/* ui elements */
-tQuery.prototype = tQuery.elements = new Array(
-		"Page" , 
-		"Window" , 
-		"AlertDialog",
-		"Animation",
-		"Button",
-		"ButtonBar",
-		"CoverFlowView",
-		"DashboardItem",
-		"DashboardView",
-		"EmailDialog",
-		"ImageView",
-		"Label",
-		"MaskedImage",
-		"Notification",
-		"OptionDialog",
-		"Picker",
-		"PickerColumn",
-		"PickerRow",
-		"ProgressBar",
-		"ScrollableView",
-		"ScrollView",
-		"SearchBar",
-		"Slider",
-		"Switch",
-		"Tab",
-		"TabbedBar", // DEPRECATED since 1.8.0
-		"TabGroup",
-		"TableView",
-		"TableViewRow",
-		"TableViewSection",
-		"TextArea",
-		"TextField",
-		"Toolbar" , //  DEPRECATED since 1.8.0
-		"View",
-		"WebView",
-		"Window"
-) ;
 
 /* istQueryObject */
 tQuery.prototype = tQuery.istQueryObject = function(obj)
@@ -402,6 +419,185 @@ tQuery.prototype = tQuery.clear = function()
     
     return new tQuery.fn.init();
 };
+
+
+
+
+/**
+ * 调用ti api 创建ui对象
+ * 根据当前选项，创建Ti UI 如果有父对象，添加当前layout到父对象上
+ * 第二个参数是父对象{tQuery Object}，
+ * 如果没有指定第二个参数，则不需要添加到父对象上
+ * 
+ * @param {Number} current_created_layout  当前创建的layout tQueryid
+ * @param {tQuery Object} parent 父对象
+ * @return 
+ */
+tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , parent )
+{
+    // 先创建，后添加
+    if( !current_created_layout )
+    {
+        return tQuery.console.error( "internal method __createTiUi expect params current_created_layout as valid tQueryid ");
+    }
+    
+    var type = tQuery.UiChain("chain")[current_created_layout]['opt']['type'] ;
+    var ele = tQuery.__createElementByType(type , tQuery.UiChain("chain")[current_created_layout]['opt'] );// ti ui object
+    tQuery.UiChain("chain")[current_created_layout]['ti'] = ele ;
+    
+    var children = tQuery.UiChain("chain")[current_created_layout]['children'] ;
+    children.foreach( function(i , tQueryid ){
+        // 创建并添加到ui chain上
+        tQuery.__createTiUi( tQueryid , tQuery(current_created_layout)  );
+    } );
+    
+    if( parent && tQuery.istQueryObject(parent)  &&  parent.context[0] )
+    {
+        // children 添加到parent上
+        var p  = tQuery.UiChain("chain")[ parent.context[0] ]['ti'] ;
+        if( !p['add'] )
+        {
+            return tQuery.console.error( "object p has no method add");
+        }
+        
+        p.add( ele );
+    }
+    
+    // 这里不能将global对象返回
+};
+
+
+
+tQuery.prototype = tQuery.__createElementByType = function( type , opt )
+{
+    opt = tQuery.isObject(opt) ? opt : {};
+    if( -1 === tQuery.inArray( type , tQuery.elements ) )
+    {
+        return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
+    }
+    
+    var tmobile = {
+        open : function(){} ,
+        close : function(){} ,
+    };
+    
+    switch( type )
+    {
+        case 'Window': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWindow ; 
+            break; 
+        case 'AlertDialog': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createAlertDialog ; 
+            break; 
+        case 'Animation': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createAnimation ; 
+            break; 
+        case 'Button': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createButton ; 
+            break; 
+        case 'ButtonBar': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createButtonBar ; 
+            break; 
+        case 'CoverFlowView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createCoverFlowView ; 
+            break; 
+        case 'DashboardItem': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createDashboardItem ; 
+            break; 
+        case 'DashboardView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createDashboardView ; 
+            break; 
+        case 'EmailDialog': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createEmailDialog ; 
+            break; 
+        case 'ImageView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createImageView ; 
+            break; 
+        case 'Label': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createLabel ; 
+            break; 
+        case 'MaskedImage': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createMaskedImage ; 
+            break; 
+        case 'Notification': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createNotification ; 
+            break; 
+        case 'OptionDialog': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createOptionDialog ; 
+            break; 
+        case 'Picker': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPicker ; 
+            break; 
+        case 'PickerColumn': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPickerColumn ; 
+            break; 
+        case 'PickerRow': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPickerRow ; 
+            break; 
+        case 'ProgressBar': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createProgressBar ; 
+            break; 
+        case 'ScrollableView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createScrollableView ; 
+            break; 
+        case 'ScrollView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createScrollView ; 
+            break; 
+        case 'SearchBar': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSearchBar ; 
+            break; 
+        case 'Slider': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSlider ; 
+            break; 
+        case 'Switch': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSwitch ; 
+            break; 
+        case 'Tab': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTab ; 
+            break; 
+        case 'TabbedBar': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTabbedBar ; 
+            break; 
+        case 'TabGroup': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTabGroup ; 
+            break; 
+        case 'TableView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableView ; 
+            break; 
+        case 'TableViewRow': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableViewRow ; 
+            break; 
+        case 'TableViewSection': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableViewSection ; 
+            break; 
+        case 'TextArea': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTextArea ; 
+            break; 
+        case 'TextField': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTextField ; 
+            break; 
+        case 'Toolbar': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createToolbar ; 
+            break; 
+        case 'View': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createView ; 
+            break; 
+        case 'WebView': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWebView ; 
+            break; 
+        case 'Window': 
+            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWindow ; 
+            break; 
+        default:
+            /**DEBUG{{**/ typeof Ti === 'undefined' ?  console.error : /**}}**/ Ti.API.error("Unrecognized UI element " + k);
+            break;
+    }
+    
+    // TODO 添加css样式
+    return api(opt);
+}
+
+
 
 tQuery.prototype = tQuery.fn  = {
     /**
@@ -619,13 +815,14 @@ tQuery.prototype = tQuery.fn  = {
             {
                 create(opt, parent );
                 
-                addListToChain();   
+                addListToChain();
                 
                 // TODO 渲染样式表 调用ti api 创建ui对象
                 // 根据当前选项，创建Ti UI 如果有父对象，添加当前layout到父对象上
                 // 第二个参数是父对象{tQuery Object}，
                 // 如果没有指定第二个参数，则不需要添加到父对象上
-                this.__createTiUi( current_created_layout , parent );
+                tQuery.__createTiUi( current_created_layout , parent )
+                
                 return tQuery(current_created_layout);
             }
             
@@ -858,32 +1055,7 @@ tQuery.prototype = tQuery.fn  = {
     		
     	};
     	
-    	/**
-    	 * 调用ti api 创建ui对象
-    	 * 根据当前选项，创建Ti UI 如果有父对象，添加当前layout到父对象上
-    	 * 第二个参数是父对象{tQuery Object}，
-    	 * 如果没有指定第二个参数，则不需要添加到父对象上
-    	 * 
-    	 * @param {Number} current_created_layout  当前创建的layout tQueryid
-    	 * @param {tQuery Object} parent 父对象
-    	 * @return 
-    	 */
-    	this.__createTiUi = function(current_created_layout , parent)
-    	{
-    		// 先创建，后添加
-    		while( current_created_layout  )
-    		{
-    			var type = tQuery.UiChain("chain")[current_created_layout]['type'] ;
-    			var children = tQuery.UiChain("chain")[current_created_layout]['children'] ;
-    		}
-    		
-    		if( tQuery.istQueryObject(parent) )
-    		{
-    			
-    		}
-    		
-    		
-    	};
+    	
     	
     	/**
     	 * child 是 tQueryid
@@ -914,6 +1086,24 @@ tQuery.prototype = tQuery.fn  = {
     	{
     		return this.length;
     	};
+    	
+    	this.open = function()
+    	{
+    	    if( this.context[0] 
+    	        && tQuery.UiChain("chain")[this.context[0]] 
+    	        && tQuery.UiChain("chain")[this.context[0]]['ti'] 
+    	        && tQuery.UiChain("chain")[this.context[0]]['ti']['open']
+    	    )
+    	    {
+        	    tQuery.UiChain("chain")[this.context[0]]['ti'].open();
+    	    }
+    	    else
+    	    {
+    	        tQuery.console.error( tQuery.UiChain("chain")[this.context[0]]['ti'] + 'has no method open ');
+    	    }
+    	    
+    	    return this ;
+    	}
     	
     	/**
     	 * 迭代tQuery对象的每一个元素 
@@ -1083,18 +1273,18 @@ tQuery.prototype = tQuery.fn  = {
     	{
     		if( !key )
 			{
-    			return tQuery.console.error( "method attr expect key valid !" );
+    			return tQuery.console.error( "method attr expect key valid ! passed " + key );
 			}
 
     		if( typeof value === "undefined" )
 			{
     			// Get
     			var ret = new Array()	;
-    			this.__getTiObject.foreach( function( i , ele	){
+    			this.__getTiObject().foreach( function( i , ele	){
     				var obj = {};
     				for( var p in ele)
     				{
-    					// TODO 这里需要考虑对象的方式是否会添加进来
+    					// TODO 这里需要考虑对象的方法是否会添加进来
     					obj[p] = ele[p] ;
     				}
     				
@@ -1108,7 +1298,7 @@ tQuery.prototype = tQuery.fn  = {
     		if( typeof key === "object" )
     		{
     			var obj = tQuery.clone( key );
-				this.__getTiObject.foreach( function(i , ele){
+				this.__getTiObject().foreach( function(i , ele){
 	    			for( var k in obj )
 	    			{
 	    				ele[k] = obj[k];
@@ -1120,7 +1310,7 @@ tQuery.prototype = tQuery.fn  = {
     		}
     		
     		// Set key = value 
-			this.__getTiObject.foreach( function( i , ele	){
+			this.__getTiObject().foreach( function( i , ele	){
 				ele[key] = value ;
 			});
 
