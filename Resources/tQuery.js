@@ -1,6 +1,19 @@
 /**
  * tQuery framework simple  and easy
+ * /**
+ * open source less render css  
+ * 开发完后直接生成一个固定的css样式文件，以后就可以直接用省略编译步骤提升速度 
+ * 监视less文件，有改动自动生成css文件
+ * 支持多个less文件，不同的系统或者分辨率使用不同的less
  * 
+ * 缺陷，less这种预处理的方式很影响效率，如果一开始就处理，会延长app打开的时间
+ * 
+ * 直接定义js 的 object 写法上注意一点就行，实现简单，效率高
+ * 
+ * @link http://less.cnodejs.net/tools
+ * 
+ * JSS
+ * @link http://classtyle.com/jss/
  * useage:
  * app.js 
  * (function(global){
@@ -145,6 +158,7 @@ tQuery.prototype = tQuery.isArray = function(array)
     return tQuery.type(array) === "array" ;
 };
 
+
 tQuery.prototype = tQuery.merge = function(o,n)
 {
     o = tQuery.type(o) === "object" ? o : {};
@@ -154,7 +168,7 @@ tQuery.prototype = tQuery.merge = function(o,n)
 
     for (var q in n)
     {
-        obj[q] = n[q];
+        obj[q] = n[q]; // 覆盖合并
     }
 
     return obj ;
@@ -230,6 +244,20 @@ tQuery.prototype = tQuery.elements = new Array(
 		"Window"
 ) ;
 
+/**
+ * 设备平台信息
+ */
+tQuery.prototype = tQuery.device = {
+	platform : "Android" ,
+	width: 320,
+	height:480 ,
+};
+
+/**
+ * css 样式，全局使用
+ */
+tQuery.prototype = tQuery.css = {};
+
 /* istQueryObject */
 tQuery.prototype = tQuery.istQueryObject = function(obj)
 {
@@ -259,6 +287,56 @@ tQuery.prototype = tQuery.getMulitClass = function(str)
     }
     
     return ret;
+};
+
+/**
+ * 优先级
+ * 1.创建时设置的属性
+ * 2.特定平台，特定分辨率
+ * 3.特定平台，特定dpi
+ * 4.特定平台
+ * 5.通用属性
+ * 
+ * id > class > tag 
+ * 
+ * 最先读取的可以被覆盖，后读取的覆盖先读取的
+ * 先读取优先级低的，再读取优先级高的
+ * 
+ * internal use only 
+ * @param {Array} paths 样式文件路径(已经按照低早高晚的优先级规则排好序)
+ * 
+ */
+tQuery.prototype = tQuery.__loadStyle = function( paths )
+{
+	// 遍历每一个属性，合并对象
+	var global_css = {} ;
+	paths.foreach( function(i , path ){
+		var css = require(path).css ;
+		global_css = tQuery.merge( global_css , css );
+	});
+	
+	return tQuery.css = global_css ;
+};
+
+
+tQuery.prototype = tQuery.loadStyle = function()
+{
+	// 加载要存储起来，后面直接使用
+	var paths = new Array();
+	// 处理通用样式
+//	var style = require("./style/style").style ; // 只读
+//	
+//	var path = tQuery.device.platform + tQuery.device.width + "x" + tQuery.device.height ;
+//	
+//	var css = {};
+	
+	// 这里处理平台，根据不同的平台加载不同的样式文件
+	
+	// 处理分辨率 
+	
+	// 处理dpi
+	
+	return tQuery.__loadStyle( paths );
 };
 
 tQuery.prototype = tQuery.unique = function( args )  
