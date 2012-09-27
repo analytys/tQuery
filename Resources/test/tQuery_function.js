@@ -335,3 +335,12 @@ test( "tQuery.data" , function(){
 
 });
 
+test( "tQuery.less " , function(){
+	
+	tQuery.less.render('.class { width: 1 + 1 }', function (e, css) {
+	    equal( css , '.class { width: 2 }');
+		//console.log(css);
+	});
+	
+});
+
