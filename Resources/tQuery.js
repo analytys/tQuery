@@ -265,9 +265,15 @@ tQuery.prototype = tQuery.trim = function(str)
  * 设备平台信息
  */
 tQuery.prototype = tQuery.device = {
-	platform : "Android" ,
-	width: 320,
-	height:480 ,
+	osname : Ti.Platform.osname,
+    version : Ti.Platform.version,
+    density : Ti.Platform.displayCaps.density , // 显示像素密度
+    dpi : Titanium.Platform.DisplayCaps.dpi , 
+    logicalDensityFactor : Titanium.Platform.DisplayCaps.logicalDensityFactor ,
+    height : Ti.Platform.displayCaps.platformHeight,
+    width : Ti.Platform.displayCaps.platformWidth ,
+    xdpi : Ti.Platform.displayCaps.xdpi ,
+    ydpi : Ti.Platform.displayCaps.ydpi ,
 };
 
 /**
@@ -307,6 +313,38 @@ tQuery.prototype = tQuery.getMulitClass = function(str)
 };
 
 /**
+ * 
+ * internal use only 
+ * @param {Array} paths 样式文件路径(已经按照低早高晚的优先级规则排好序)
+ * 
+ */
+tQuery.prototype = tQuery.__loadStyle = function( paths )
+{
+	// 遍历每一个属性，合并对象
+	var global_css = {} ;
+	paths.foreach( function(i , path ){
+		var css = require(path).style ;
+		if(!css)
+		{
+		    tQuery.console.error("css is undefined and the path is " + path );    
+		}
+		
+		global_css = tQuery.merge( global_css , css );
+	});
+	
+	return tQuery.css = global_css ;
+};
+
+/**
+ * 返回对应的css属性，nodejs测试 
+ */
+tQuery.prototype = tQuery.__renderCSS = function( type , cls , id )
+{
+    
+}
+
+/**
+ * 加载样式，初始化的时候加载
  * 优先级
  * 1.创建时设置的属性
  * 2.特定平台，特定分辨率
@@ -319,42 +357,29 @@ tQuery.prototype = tQuery.getMulitClass = function(str)
  * 最先读取的可以被覆盖，后读取的覆盖先读取的
  * 先读取优先级低的，再读取优先级高的
  * 
- * internal use only 
- * @param {Array} paths 样式文件路径(已经按照低早高晚的优先级规则排好序)
- * 
  */
-tQuery.prototype = tQuery.__loadStyle = function( paths )
-{
-	// 遍历每一个属性，合并对象
-	var global_css = {} ;
-	paths.foreach( function(i , path ){
-		var css = require(path).css ;
-		global_css = tQuery.merge( global_css , css );
-	});
-	
-	return tQuery.css = global_css ;
-};
-
-
 tQuery.prototype = tQuery.loadStyle = function()
 {
 	// 加载要存储起来，后面直接使用
-	var paths = new Array();
-	// 处理通用样式
-//	var style = require("./style/style").style ; // 只读
-//	
-//	var path = tQuery.device.platform + tQuery.device.width + "x" + tQuery.device.height ;
-//	
-//	var css = {};
+	var paths = new Array(
+	    "./style/style", // 通用样式
+	    "./style/" + tQuery.device.osname  , // Android || iphone || ipad ...
+	    "./style/" + tQuery.device.osname + tQuery.device.version  , // Android4.0 || iphone-4s 
+	    "./style/" + tQuery.device.dpi  ,
+	    "./style/" + tQuery.device.osname + tQuery.device.width + "x" + tQuery.device.height 
+	);
 	
-	// 这里处理平台，根据不同的平台加载不同的样式文件
+	var files = new Array();
 	
-	// 处理分辨率 
-	
-	// 处理dpi
-	
-	return tQuery.__loadStyle( paths );
-};
+	paths.foreach( function(i , path ){
+	    var file = Ti.Filesystem.getFile( path + ".js" );
+	    if( file.exists() )
+	    {
+	        files.push( path );
+	    }
+	});
+
+	return tQuery.__loadStyle( files );};
 
 tQuery.prototype = tQuery.unique = function( args )  
 {  
