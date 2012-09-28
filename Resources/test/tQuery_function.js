@@ -301,7 +301,7 @@ test( "tQuery.clear " , function(){
 });
 
 
-test( "t Array.prototype.foreach" , function(){
+test( "Array.prototype.foreach" , function(){
 	
 	var ret = new Array();
 	[1,2,3,4,5].foreach(function(i , ele ){
@@ -335,12 +335,125 @@ test( "tQuery.data" , function(){
 
 });
 
-test( "tQuery.less " , function(){
+test( " tQuery.loadStyle() " , function(){
 	
-	tQuery.less.render('.class { width: 1 + 1 }', function (e, css) {
-	    equal( css , '.class { width: 2 }');
-		//console.log(css);
-	});
+	// 不带后缀.js
+	var prefix = "";
+	if( process.platform == 'win32' )
+	{
+		prefix = "D:\\Project\\tQuery\\Resources\\test\\style\\";
+	}
+	else
+	{
+		prefix = "/home/tocky/Data/JS/tQuery/Resources/test/style/";
+	}
 	
+	var paths = new Array(
+			prefix + "style1" 
+	);
+
+	deepEqual( tQuery.loadStyle( paths ) , {} , 'empty style1 , tQuery.css , {}');
+	
+	
+	paths = new Array(
+			prefix + "style2",
+			prefix + "android" ,
+			prefix + "android2.1",
+			prefix + "android320x480" // non dpi
+	);
+	
+	var expect = {
+			"#style2":{
+				color : "#ffffff",
+			},
+			
+			"#android":{
+				backgroundColor: "#ff0000",
+			},
+			
+			"#android2.1" : {
+				title : "Hello",
+			},
+			
+			"android320x480":{
+				text : "android" ,
+			},
+			
+			"Label" : {
+				top : 100 ,
+				left : 200 ,
+				width : 300 ,
+				height : 500 ,
+			},
+			
+			".class" : {
+				left : 1,
+				right: 2 ,
+				width: 100 ,
+				height: 50 ,
+				color : "red" ,
+			},
+			
+			".com" : {
+				color : "white" ,
+				"background-img" : "a.png",
+			}
+	};
+	
+	deepEqual( tQuery.loadStyle( paths ) , expect , 'style2 tQuery.loadStyle( paths ) , {}' ) ;
+	
+	deepEqual( tQuery.__getStyle() , {} , 'tQuery.__getStyle( opt )' );
+	
+	deepEqual( tQuery.__getStyle({type:"Window"}) , {} , 'tQuery.__getStyle({type:"Window"}) === {}' ) ;
+	
+	deepEqual( tQuery.__getStyle({id:"tid"}) , {} , 'tQuery.__getStyle({id:"tid"}) === {} ' );
+	
+	deepEqual( tQuery.__getStyle({cls:"classname"}) , {} , 'tQuery.__getStyle({cls:"classname"}) === {} ' );
+	
+	deepEqual( tQuery.__getStyle({class:"cls"}) , {} , 'tQuery.__getStyle({class:"cls"}) === {} ' );
+	
+	deepEqual( tQuery.__getStyle({className:"cls"}) , {} , 'tQuery.__getStyle({className:"cls"}) === {} ' );
+	
+	deepEqual( tQuery.__getStyle({cls:"class com"}) , 	{
+		left : 1,
+		right: 2 ,
+		width: 100 ,
+		height: 50 ,
+		color: 'white',
+		"background-img" : "a.png",
+	}, 'tQuery.__getStyle({cls:"class com"})' );
+	
+	
+	deepEqual( tQuery.__getStyle({type:"Label"})  , {
+		top : 100 ,
+		left : 200 ,
+		width : 300 ,
+		height : 500 
+	} , 'tQuery.__getStyle({type:"Label"}))' ) ; 
+	
+	
+	deepEqual( tQuery.__getStyle({type:"Label"}) , tQuery.cache["Label__"] , 
+			'tQuery.__getStyle({type:"Label"}) === tQuery.cache["Label__"]' );
+	
+	deepEqual( tQuery.__getStyle({id:"android"}) , {	backgroundColor: "#ff0000"} , 
+			'tQuery.__getStyle({id:"android"}) === {	backgroundColor: "#ff0000"}');
+	
+	// 测试混合属性
+	deepEqual( tQuery.__getStyle({id:"android", type : "Label"}) , {
+		top : 100 ,
+		left : 200 ,
+		width : 300 ,
+		height : 500 ,
+		backgroundColor: "#ff0000",
+	}, '测试混合属性 tQuery.__getStyle({id:"android", type : "Label"})'	); 
+
+	deepEqual( tQuery.__getStyle({id:"style2", type : "Label" , cls : "class"}) , {
+		top : 100 ,
+		left : 1 ,
+		width : 100 ,
+		height : 50 ,
+		right: 2 ,
+		color : "#ffffff"	}, '测试混合属性 tQuery.__getStyle({id:"style2", type : "Label" , cls :"class"})'	); 
 });
+
 

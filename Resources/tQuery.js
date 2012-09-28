@@ -31,6 +31,13 @@
 
 
 
+/**DEBUG{{**/
+if( typeof Ti === "undefined")
+{
+	var Ti = require("./test/ti").Ti ;
+}
+/**}}**/
+
 
 
 /**
@@ -121,28 +128,25 @@ tQuery.prototype = tQuery.elements = new Array(
 /* console debug */
 tQuery.prototype = tQuery.console = {
         debug : function(){
-                return typeof Ti !== "undefined" ? Ti.API.debug.call( Ti.API , arguments[0] ) :
-                 ( typeof console.debug === "undefined" ? console.log : console.debug )  ;
-            },  
-        // error : typeof Ti !== "undefined" ? function(){Ti.API.error.apply( Ti.API.error, arguments); }: console.error  ,
+                return  Ti.API.debug.call( Ti.API , arguments[0] )  ;
+            },        
         error : function(){
-            return typeof Ti !== "undefined"  ? Ti.API.error.call( Ti.API , arguments[0] ) : console.error ;
+            return  Ti.API.error.call( Ti.API , arguments[0] )  ;
         },
         info : function(){
-            return typeof Ti !== "undefined" ?  Ti.API.info.call( Ti.API , arguments[0] ) : console.info  ;
+            return   Ti.API.info.call( Ti.API , arguments[0] )  ;
         },
         log : function(){
-            return typeof Ti !== "undefined" ?   Ti.API.log.call( Ti.API , arguments[0] ) : console.log ;
+            return Ti.API.log.call( Ti.API , arguments[0] ) ;
         },
         warn : function(){
-            return  typeof Ti !== "undefined" ?  Ti.API.warn.call( Ti.API , arguments[0] ) : console.warn  ;
+            return Ti.API.warn.call( Ti.API , arguments[0] );
          },
         trace : function(){
-            return typeof Ti !== "undefined" ? Ti.API.trace.call( Ti.API , arguments[0] ) : console.trace  ;
+            return Ti.API.trace.call( Ti.API , arguments[0] )  ;
         },
         timestamp : function(){
-            return typeof Ti !== "undefined" ? Ti.API.timestamp.call( Ti.API , arguments[0] ) : 
-            ( typeof console.timestamp === "undefined" ? console.log : console.timestamp)  ;
+            return Ti.API.timestamp.call( Ti.API , arguments[0] ) ;
         },
 };
 
@@ -268,8 +272,8 @@ tQuery.prototype = tQuery.device = {
 	osname : Ti.Platform.osname,
     version : Ti.Platform.version,
     density : Ti.Platform.displayCaps.density , // 显示像素密度
-    dpi : Titanium.Platform.DisplayCaps.dpi , 
-    logicalDensityFactor : Titanium.Platform.DisplayCaps.logicalDensityFactor ,
+    dpi : Ti.Platform.DisplayCaps.dpi , 
+    logicalDensityFactor : Ti.Platform.DisplayCaps.logicalDensityFactor ,
     height : Ti.Platform.displayCaps.platformHeight,
     width : Ti.Platform.displayCaps.platformWidth ,
     xdpi : Ti.Platform.displayCaps.xdpi ,
@@ -280,6 +284,11 @@ tQuery.prototype = tQuery.device = {
  * css 样式，全局使用
  */
 tQuery.prototype = tQuery.css = {};
+
+/**
+ * 全局缓存
+ */
+tQuery.prototype = tQuery.cache = {};
 
 /* istQueryObject */
 tQuery.prototype = tQuery.istQueryObject = function(obj)
@@ -309,39 +318,97 @@ tQuery.prototype = tQuery.getMulitClass = function(str)
         ret.push(arr[i]);
     }
     
-    return ret;
+    return tQuery.unique(ret);
 };
 
 /**
  * 
  * internal use only 
- * @param {Array} paths 样式文件路径(已经按照低早高晚的优先级规则排好序)
+ * @param {Array} modules 模块文件路径(已经按照低早高晚的优先级规则排好序)
  * 
  */
-tQuery.prototype = tQuery.__loadStyle = function( paths )
+tQuery.prototype = tQuery.__loadStyle = function( modules )
 {
 	// 遍历每一个属性，合并对象
-	var global_css = {} ;
-	paths.foreach( function(i , path ){
-		var css = require(path).style ;
+	modules.foreach( function(i , module ){
+		var css = require(module).style ;
 		if(!css)
 		{
-		    tQuery.console.error("css is undefined and the path is " + path );    
+		    tQuery.console.error("load the style module falid " + module );    
 		}
 		
-		global_css = tQuery.merge( global_css , css );
+		// TODO 这里的合并要考虑性能优化
+		// css 对象很大的时候，每一次拷贝，遍历合并 开销肯定不小
+		// 担心css成为一个很大的对象
+		for( var p in css )
+		{
+			for( q in css[p] )
+			{
+				tQuery.css[p] = tQuery.css[p] || {};
+				tQuery.css[p][q] = css[p][q] ;
+			}
+		}
 	});
 	
-	return tQuery.css = global_css ;
+	return tQuery.css ;
 };
 
 /**
- * 返回对应的css属性，nodejs测试 
+ * 返回对应的样式属性 
+ * 结果要缓存起来，下次直接使用不需要再查找
+ * 优先级为type cls id
  */
-tQuery.prototype = tQuery.__renderCSS = function( type , cls , id )
+tQuery.prototype = tQuery.__getStyle = function( opt )
 {
+	opt = opt || {};
+    var type = opt['type'] && tQuery.type(opt.type) === "string"  ? opt.type : "";
     
-}
+    var cls = opt['cls'] && tQuery.type(opt.cls) === "string"  ? opt.cls : ( 
+    		opt['class'] &&  tQuery.type( opt['class'] === "string" 	) ? opt['class'] : (
+    				opt['className'] &&  tQuery.type( opt['className'] )  === "string"  ? opt['className'] : "" 
+    		)
+    ) ;
+    var id = opt['id'] && tQuery.type(opt.id) === "string"  ? opt.id : "" ;
+    
+    var key = type + "_" +  cls.replace(" " , '_') + "_" + id ;
+    if( tQuery.cache[key] )
+    {
+    	return tQuery.cache[key] ;
+    }
+    
+    var a = {} ;
+    var b = {} ;
+    var c = {} ;
+    
+    if( type )
+    {
+    	a = tQuery.css[type] || {} ;
+    }
+    
+    if( cls )
+    {
+    	tQuery.getMulitClass( cls ).foreach( function( i , str ){
+    		str = "." + str  ;
+    		tQuery.css[str] = tQuery.css[str] || {};
+    		b = tQuery.merge( b , tQuery.css[str] );
+    	});
+    }
+    
+    if( id )
+    {
+    	id = "#" + id ;
+    	tQuery.css[id] = tQuery.css[id] || {} ;
+    	c = tQuery.css[id] ;
+    }
+    
+    var d = tQuery.merge( a , b );
+    var e = tQuery.merge( d , c );
+    
+    // cache 
+    tQuery.cache[key] = e ;
+    
+    return e ;
+};
 
 /**
  * 加载样式，初始化的时候加载
@@ -358,28 +425,28 @@ tQuery.prototype = tQuery.__renderCSS = function( type , cls , id )
  * 先读取优先级低的，再读取优先级高的
  * 
  */
-tQuery.prototype = tQuery.loadStyle = function()
+tQuery.prototype = tQuery.loadStyle = function( paths )
 {
 	// 加载要存储起来，后面直接使用
-	var paths = new Array(
-	    "./style/style", // 通用样式
-	    "./style/" + tQuery.device.osname  , // Android || iphone || ipad ...
-	    "./style/" + tQuery.device.osname + tQuery.device.version  , // Android4.0 || iphone-4s 
-	    "./style/" + tQuery.device.dpi  ,
-	    "./style/" + tQuery.device.osname + tQuery.device.width + "x" + tQuery.device.height 
+	paths = paths || new Array(
+		Ti.Filesystem.resourcesDirectory + "style/style", // 通用样式
+		Ti.Filesystem.resourcesDirectory + "style/" + tQuery.device.osname  , // Android || iphone || ipad ...
+		Ti.Filesystem.resourcesDirectory + "style/" + tQuery.device.osname + tQuery.device.version  , // Android4.0 || iphone-4s 
+		Ti.Filesystem.resourcesDirectory + "style/" + tQuery.device.dpi  ,
+		Ti.Filesystem.resourcesDirectory + "style/" + tQuery.device.osname + tQuery.device.width + "x" + tQuery.device.height 
 	);
 	
-	var files = new Array();
+	var modules = new Array();
 	
-	paths.foreach( function(i , path ){
-	    var file = Ti.Filesystem.getFile( path + ".js" );
+	paths.foreach( function(i , module ){
+	    var file = Ti.Filesystem.getFile( module + ".js" );
 	    if( file.exists() )
 	    {
-	        files.push( path );
+	    	modules.push( module );
 	    }
 	});
 
-	return tQuery.__loadStyle( files );};
+	return tQuery.__loadStyle( modules );};
 
 tQuery.prototype = tQuery.unique = function( args )  
 {  
@@ -558,7 +625,7 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
     {
         // children 添加到parent上
         var p  = tQuery.UiChain("chain")[ parent.context[0] ]['ti'] ;
-        if( !p['add'] )
+        if( tQuery.typep(['add']) !== 'function' )
         {
             return tQuery.console.error( "object p has no method add");
         }
@@ -567,6 +634,7 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
     }
     
     // 这里不能将global对象返回
+    return ;
 };
 
 
@@ -579,126 +647,119 @@ tQuery.prototype = tQuery.__createElementByType = function( type , opt )
         return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
     }
     
-    var tmobile = {
-        open : function(){} ,
-        close : function(){} ,
-    };
-    
     switch( type )
     {
-        case 'Window': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWindow ; 
-            break; 
         case 'AlertDialog': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createAlertDialog ; 
+            api = Ti.UI.createAlertDialog ; 
             break; 
         case 'Animation': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createAnimation ; 
+            api = Ti.UI.createAnimation ; 
             break; 
         case 'Button': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createButton ; 
+            api = Ti.UI.createButton ; 
             break; 
         case 'ButtonBar': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createButtonBar ; 
+            api = Ti.UI.createButtonBar ; 
             break; 
         case 'CoverFlowView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createCoverFlowView ; 
+            api = Ti.UI.createCoverFlowView ; 
             break; 
         case 'DashboardItem': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createDashboardItem ; 
+            api = Ti.UI.createDashboardItem ; 
             break; 
         case 'DashboardView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createDashboardView ; 
+            api = Ti.UI.createDashboardView ; 
             break; 
         case 'EmailDialog': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createEmailDialog ; 
+            api = Ti.UI.createEmailDialog ; 
             break; 
         case 'ImageView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createImageView ; 
+            api = Ti.UI.createImageView ; 
             break; 
         case 'Label': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createLabel ; 
+            api = Ti.UI.createLabel ; 
             break; 
         case 'MaskedImage': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createMaskedImage ; 
+            api = Ti.UI.createMaskedImage ; 
             break; 
         case 'Notification': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createNotification ; 
+            api = Ti.UI.createNotification ; 
             break; 
         case 'OptionDialog': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createOptionDialog ; 
+            api = Ti.UI.createOptionDialog ; 
             break; 
         case 'Picker': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPicker ; 
+            api = Ti.UI.createPicker ; 
             break; 
         case 'PickerColumn': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPickerColumn ; 
+            api = Ti.UI.createPickerColumn ; 
             break; 
         case 'PickerRow': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createPickerRow ; 
+            api = Ti.UI.createPickerRow ; 
             break; 
         case 'ProgressBar': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createProgressBar ; 
+            api = Ti.UI.createProgressBar ; 
             break; 
         case 'ScrollableView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createScrollableView ; 
+            api = Ti.UI.createScrollableView ; 
             break; 
         case 'ScrollView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createScrollView ; 
+            api = Ti.UI.createScrollView ; 
             break; 
         case 'SearchBar': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSearchBar ; 
+            api = Ti.UI.createSearchBar ; 
             break; 
         case 'Slider': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSlider ; 
+            api = Ti.UI.createSlider ; 
             break; 
         case 'Switch': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createSwitch ; 
+            api = Ti.UI.createSwitch ; 
             break; 
         case 'Tab': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTab ; 
+            api = Ti.UI.createTab ; 
             break; 
         case 'TabbedBar': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTabbedBar ; 
+            api = Ti.UI.createTabbedBar ; 
             break; 
         case 'TabGroup': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTabGroup ; 
+            api = Ti.UI.createTabGroup ; 
             break; 
         case 'TableView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableView ; 
+            api = Ti.UI.createTableView ; 
             break; 
         case 'TableViewRow': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableViewRow ; 
+            api = Ti.UI.createTableViewRow ; 
             break; 
         case 'TableViewSection': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTableViewSection ; 
+            api = Ti.UI.createTableViewSection ; 
             break; 
         case 'TextArea': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTextArea ; 
+            api = Ti.UI.createTextArea ; 
             break; 
         case 'TextField': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createTextField ; 
+            api = Ti.UI.createTextField ; 
             break; 
         case 'Toolbar': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createToolbar ; 
+            api = Ti.UI.createToolbar ; 
             break; 
         case 'View': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createView ; 
+            api = Ti.UI.createView ; 
             break; 
         case 'WebView': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWebView ; 
+            api = Ti.UI.createWebView ; 
             break; 
         case 'Window': 
-            api = /**DEBUG{{**/ typeof Ti === 'undefined' ?  function(){return tmobile ; } : /**}}**/ Ti.UI.createWindow ; 
+            api = Ti.UI.createWindow ; 
             break; 
         default:
-            /**DEBUG{{**/ typeof Ti === 'undefined' ?  console.error : /**}}**/ Ti.API.error("Unrecognized UI element " + k);
+            tQuery.console.error("Unrecognized UI element type " + k );
             break;
     }
     
     // TODO 添加css样式
-    return api(opt);
-}
+    var option = tQuery.merge( opt , tQuery.__getStyle(opt) );
+    return api(option);
+};
 
 
 
@@ -875,7 +936,16 @@ tQuery.prototype = tQuery.fn  = {
                         }
                     }
                     
-                    // 遍历，处理event
+                    // 全部转换成className 属性
+                    obj['className'] = obj['className'] || "";
+                    obj['cls'] = obj['cls'] || "";  
+                    obj['class'] = obj['class'] || "";
+                    
+                    obj['className'] = obj['className'] + " " + obj['cls'] + " " + obj['class'] ; 
+                    delete obj['cls'] ;
+                    delete obj['class'] ;
+                    
+                    // TODO 遍历，处理event
                     
                     /* 处理子element */
                     if( obj["children"] )
@@ -998,7 +1068,7 @@ tQuery.prototype = tQuery.fn  = {
         	   }
         	}
         	
-        	// handle #id
+        	// TODO handle #id 尽量不用正则，优化性能
         	var match = /^(?:[^#<]*(<[\w\W]+>)[^>]*$|#([\w\-]*)$)/.exec(selector);
         	if(match && match[2] )
         	{
@@ -1206,7 +1276,7 @@ tQuery.prototype = tQuery.fn  = {
     	    }
     	    
     	    return this ;
-    	}
+    	};
     	
     	/**
     	 * 迭代tQuery对象的每一个元素 
@@ -1282,37 +1352,12 @@ tQuery.prototype = tQuery.fn  = {
     	        return this;
     	    }
     	    
-    	    
-    	    
-    	    
     	    if( typeof value === "undefined" )
     	    {
     	    	// 只支持一个元素取值，这个要有良好的规定，否则造成混乱
     	    	// 默认取第一个元素
     	    	var data = this.__getUiChainObject(this.context[0] , "data" ) || {} ;
 	    		return data[key] ;
-	    		
-	    		
-//    	    	if( this.length === 1)
-//	    		{
-//    	    		var data = this.__getUiChainObject(this.context[0] , "data" ) || {} ;
-//    	    		return data[key] ;	
-//	    		}
-//    	    	else
-//    	    	{
-//    	    		var ret = new Array();
-//    	    		var global = this ;
-//    	    		this.context.foreach(function(i, tQueryid ){
-//    	    			data = global.__getUiChainObject(tQueryid, 'data') || {} ;
-//    	    			if( data[key] )
-//    	    			{
-//    	    				ret.push( data[key] );
-//    	    			}
-//    	    		});
-//    	    		
-//    	    		return ret ;
-//    	    	}
-    	    	
     	    }
 
     	    this.context.foreach(function(i , tQueryid  ){
@@ -1387,8 +1432,11 @@ tQuery.prototype = tQuery.fn  = {
     				var obj = {};
     				for( var p in ele)
     				{
-    					// TODO 这里需要考虑对象的方法是否会添加进来
-    					obj[p] = ele[p] ;
+    					// 原生属性
+    					if( ele.hasOwnPrototype(p) )
+    					{
+    						obj[p] = ele[p] ;	
+    					}
     				}
     				
     				ret.push( obj );
@@ -1407,7 +1455,6 @@ tQuery.prototype = tQuery.fn  = {
 	    				ele[k] = obj[k];
 	    			}
 				} );
-
     			
     			return this ;
     		}
@@ -1421,7 +1468,45 @@ tQuery.prototype = tQuery.fn  = {
     	};
     	
     	/**
+    	 * 删除对象属性
+    	 * @param {String} name
+    	 * @return {tQuery Object} this
+    	 */
+    	this.removeAttr = function(name)
+    	{
+    		if( tQuery.type(name) != 'string' )
+    		{
+    			return tQuery.console.error("method removeAttr expect params name as string valid ");
+    		}
+    		
+			this.__getTiObject().foreach( function( i , ele	){
+				ele[name] = undefined ;
+			});
+
+			return this ;
+    	};
+    	
+    	/**
+    	 * internal use only 
+    	 * @param className
+    	 * @param {Boolen} bool add => true ， remove => false 
+    	 */
+    	this.__setClass = function( className , bool )
+    	{
+    		var clsData = tQuery.__getStyle({cls:className});
+    		this.__getTiObject().foreach( function( i , ele ){
+    			for(var p in clsData )
+    			{
+    				ele[p] = bool ? clsData[p] : undefined ;
+    			}
+    		});
+    		
+    		return this ;
+    	};
+    	
+    	/**
     	 * 给元素添加css类名(需要更新元素样式)
+    	 * 后添加的，优先级最高，直接覆盖
     	 * @param {String} className 一个或者多个要添加的类名，以空格分隔
     	 */
     	this.addClass = function(className)
@@ -1431,13 +1516,42 @@ tQuery.prototype = tQuery.fn  = {
     		{
     			tQuery.console.error("medthod addClass expect className as string valid");
     		}
-    		// 需要更新cls chain
+
+    		// 修改ui chain 对应对象的opt.className 属性 
+    		// removeClass ， toggleClass 都需要知道是否有某个className
     		// 重新设置ti对象对应样式的值
     		// TODO 设置css样式是重要的一部分
-    		this.context.foreach( function( i , ele ){
-    			
-//    			tQuery(ele)
+    		
+    		this.context.foreach(function(i , tQueryid ){
+    			tQuery.UiChain("chain")[tQueryid]['opt']['className'] += className ;
     		});
+    		
+    		return this.__setClass( className , true );
+    	};
+    	
+    	/**
+    	 * 目前没有想到好的算法，处理class，将对应的class属性直接设为undefined
+    	 * @param {String} className
+    	 * @return {tQuery Object} 
+    	 */
+    	this.removeClass = function( className ) 
+    	{
+    		className = className || "";
+    		if( !className || tQuery.type(className) !== "string" )
+    		{
+    			tQuery.console.error("medthod removeClass expect className as string valid");
+    		}
+    		
+    		// 没有class则不删除，过滤,取交集
+    		var cls = "";
+    		this.context.foreach(function(i , tQueryid ){
+    			cls += tQuery.UiChain("chain")[tQueryid]['opt']['className'] ;
+    		});
+    		
+    		className = tQuery.intersection( tQuery.getMulitClass(cls) ,
+    				tQuery.getMulitClass(clsName) ).join( " " );
+    		
+    		return className ? this.__setClass( className , false ) : this ; 
     	};
     	
     	return this.__construct(selector , parent ) ;
@@ -1445,7 +1559,5 @@ tQuery.prototype = tQuery.fn  = {
     }
     
 };
-
-
 
 exports.tQuery = tQuery ;
