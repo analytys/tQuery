@@ -2,9 +2,11 @@
      global.tQuery = global.$ = tQuery = $ = require("./tQuery").tQuery ; 
 })(this);
 
-$.loadStyle();
+$.memoryMonitor();
 
-console.log( $.css );
+$.supportMonitor();
+
+// $.loadStyle();// console.log( $.css );
 // var MainWindow = $({type:"Window", id : "main" ,  title : "tQuery framework" , fullScreen : true , backgroundColor : "#fff000" }).open() ;
 
 

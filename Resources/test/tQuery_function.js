@@ -229,9 +229,9 @@ test("准确的获取变量的类型",function(assert){
 });
 
 
-/**
- * 测试unique 
- */
+
+ // 测试unique 
+
 test( " 测试tQuery.unique  " , function(){
 	
 	deepEqual( tQuery.unique( [1,2,3,4,5,6,7] ) , [1,2,3,4,5,6,7] , 'tQuery.unique( [1,2,3,4,5,6,7] ) === [1,2,3,4,5,6,7]' );
@@ -314,29 +314,25 @@ test( "Array.prototype.foreach" , function(){
 
 
 test( "tQuery.data" , function(){
-	
 	ok( tQuery.istQueryObject( tQuery.data( null , "key" , "value") ) , 
 			'tQuery.istQueryObject( tQuery.data( null , "key" , "value") )' );
-	
 	ok( tQuery.istQueryObject( tQuery.data( tQuery() , undefined , "hello" ) ) ,
 			'tQuery.istQueryObject( tQuery.data( tQuery() , undefined , "hello" ) )' );
 
 	ok( tQuery.istQueryObject( tQuery.data( tQuery() , undefined , undefined ) ) , 
 			'tQuery.istQueryObject( tQuery.data( tQuery() , undefined , undefined ) )');
-	
 	tQuery.data( tQuery( {type:"Window", id : "win" } ) , "m" , 110 ); 
 	strictEqual(  tQuery("#win").data("m") , 110  , 'tQuery("#win").data("m") === 110' ); 
-
+    
 	tQuery.data( tQuery( {type:"Window", id : "main" } ) , {m : 1, n :2} ); 
 	strictEqual(  tQuery("#main").data("m") , 1  , 'tQuery("#win").data("m") === 1 ' );
 	strictEqual(  tQuery("#main").data("n") , 2  , 'tQuery("#win").data("n") === 2 '  );
 	strictEqual( tQuery("Window").data("m") , 110 , 'tQuery("Window").data("m") === 110 '  );
 //	console.log( tQuery.UiChain("chain"))	;
-
 });
 
+
 test( " tQuery.loadStyle() " , function(){
-	
 	// 不带后缀.js
 	var prefix = "";
 	if( process.platform == 'win32' )
@@ -353,7 +349,6 @@ test( " tQuery.loadStyle() " , function(){
 	);
 
 	deepEqual( tQuery.loadStyle( paths ) , {} , 'empty style1 , tQuery.css , {}');
-	
 	
 	paths = new Array(
 			prefix + "style2",
@@ -455,5 +450,4 @@ test( " tQuery.loadStyle() " , function(){
 		right: 2 ,
 		color : "#ffffff"	}, '测试混合属性 tQuery.__getStyle({id:"style2", type : "Label" , cls :"class"})'	); 
 });
-
 

@@ -225,10 +225,11 @@ tQuery.prototype = tQuery.merge = function(o,n)
     n = tQuery.type(n) === "object" ? n : {};
 
     var obj = tQuery.clone(o) ; // a new copy
+    var m = tQuery.clone( n );
 
-    for (var q in n)
+    for (var q in m)
     {
-        obj[q] = n[q]; // 覆盖合并
+        obj[q] = m[q]; // 覆盖合并
     }
 
     return obj ;
@@ -272,8 +273,8 @@ tQuery.prototype = tQuery.device = {
 	osname : Ti.Platform.osname,
     version : Ti.Platform.version,
     density : Ti.Platform.displayCaps.density , // 显示像素密度
-    dpi : Ti.Platform.DisplayCaps.dpi , 
-    logicalDensityFactor : Ti.Platform.DisplayCaps.logicalDensityFactor ,
+    dpi : Ti.Platform.displayCaps.dpi , 
+    logicalDensityFactor : Ti.Platform.displayCaps.logicalDensityFactor ,
     height : Ti.Platform.displayCaps.platformHeight,
     width : Ti.Platform.displayCaps.platformWidth ,
     xdpi : Ti.Platform.displayCaps.xdpi ,
@@ -350,7 +351,7 @@ tQuery.prototype = tQuery.__loadStyle = function( modules )
 		}
 	});
 	
-	return tQuery.css ;
+	return tQuery.clone(tQuery.css) ;
 };
 
 /**
@@ -361,14 +362,15 @@ tQuery.prototype = tQuery.__loadStyle = function( modules )
 tQuery.prototype = tQuery.__getStyle = function( opt )
 {
 	opt = opt || {};
-    var type = opt['type'] && tQuery.type(opt.type) === "string"  ? opt.type : "";
+
+    var type = opt['type'] && tQuery.type(opt.type) === "string"  ? opt['type'] : "";
     
-    var cls = opt['cls'] && tQuery.type(opt.cls) === "string"  ? opt.cls : ( 
+    var cls = opt['cls'] && tQuery.type(opt.cls) === "string"  ? opt['cls'] : ( 
     		opt['class'] &&  tQuery.type( opt['class'] === "string" 	) ? opt['class'] : (
     				opt['className'] &&  tQuery.type( opt['className'] )  === "string"  ? opt['className'] : "" 
     		)
     ) ;
-    var id = opt['id'] && tQuery.type(opt.id) === "string"  ? opt.id : "" ;
+    var id = opt['id'] && tQuery.type(opt['id']) === "string"  ? opt['id'] : "" ;
     
     var key = type + "_" +  cls.replace(" " , '_') + "_" + id ;
     if( tQuery.cache[key] )
@@ -382,7 +384,7 @@ tQuery.prototype = tQuery.__getStyle = function( opt )
     
     if( type )
     {
-    	a = tQuery.css[type] || {} ;
+    	a = tQuery.css[type] || {} ; // 在这之前已经改变了tQuery.css的值
     }
     
     if( cls )
@@ -397,17 +399,21 @@ tQuery.prototype = tQuery.__getStyle = function( opt )
     if( id )
     {
     	id = "#" + id ;
-    	tQuery.css[id] = tQuery.css[id] || {} ;
-    	c = tQuery.css[id] ;
+    	
+    	// 初始创建布局对象的时候，引用到了这里，不要给tQuery.css 赋初值
+    	if( tQuery.css[id] )
+    	{
+        	c = tQuery.merge( c , tQuery.css[id]  ) ;  //  
+    	}
     }
     
     var d = tQuery.merge( a , b );
     var e = tQuery.merge( d , c );
     
     // cache 
-    tQuery.cache[key] = e ;
+    tQuery.cache[key] = tQuery.clone( e );
     
-    return e ;
+    return tQuery.cache[key]  ;
 };
 
 /**
@@ -561,7 +567,7 @@ tQuery.prototype = tQuery.data = function( obj , key , value)
         tQuery.console.error("tQuery.data expect params key valid");
         return new tQuery.fn.init();
     }
-    
+
     return obj.data( key , value );
 };
 
@@ -573,6 +579,75 @@ tQuery.prototype = tQuery.noConflict = function( deep )
 {
 	return tQuery;
 };
+
+
+tQuery.prototype = tQuery.memoryMonitor = function()
+{
+    if( Ti.UI.currentWindow )
+    {
+        var win = Ti.UI.currentWindow ;
+    }
+    else
+    {
+        var win = Ti.UI.createWindow({backgroundColor:"#ffffff"});
+        win.open();
+    }
+    
+    var memory = Ti.UI.createLabel({
+        bottom : 0 , 
+        right : 0 ,
+        color : "#ff0000",
+        zIndex: 10000
+    });
+    
+    win.add(memory);
+    
+    var updateMemory = function ()
+    {
+        memory.text = Ti.Platform.availableMemory ;
+        setTimeout(updateMemory, 500);
+    }
+    
+    updateMemory();
+};
+
+
+tQuery.prototype = tQuery.supportMonitor = function()
+{
+    var win = Ti.UI.createWindow({background:"#ffffff"});
+    var i = 0 ; 
+    var width = 200 ;
+    var height = 50 ;
+    var left = 20 ;
+    var top = 50 ;
+    var tblank = 30 ;
+    for( var p in tQuery.device )
+    {
+        i++ ;
+        var note = Ti.UI.createLabel({
+            top : i * tblank + top ,
+            left : left ,
+            width : width , 
+            height :height ,
+            text : p ,
+            color : "#000000",
+        });
+        var info = Ti.UI.createLabel({
+            top : i * tblank + top ,
+            left : width + left  , 
+            width : width  ,
+            height : height ,
+            text : tQuery.device[p] ,
+            color : "#ff0000",
+        });
+        win.add( note );
+        win.add( info );
+    }
+    
+    win.open(); 
+} ;
+
+
 
 /* clear ui chain */
 tQuery.prototype = tQuery.clear = function()
@@ -641,7 +716,7 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
 
 tQuery.prototype = tQuery.__createElementByType = function( type , opt )
 {
-    opt = tQuery.isObject(opt) ? opt : {};
+    opt = tQuery.isObject(opt) ? tQuery.clone(opt) : {};
     if( -1 === tQuery.inArray( type , tQuery.elements ) )
     {
         return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
@@ -757,7 +832,11 @@ tQuery.prototype = tQuery.__createElementByType = function( type , opt )
     }
     
     // TODO 添加css样式
-    var option = tQuery.merge( opt , tQuery.__getStyle(opt) );
+    // 猜测问题: 第二个参数返回了tQuery.css , 合并函数将opt的引用传给了tQuery.css 
+    //var option = tQuery.merge( opt , tQuery.__getStyle( opt ) ); 
+    var option = tQuery.__getStyle( opt )  ; // 问题出在这个getStyle 上
+    
+    return ;
     return api(option);
 };
 

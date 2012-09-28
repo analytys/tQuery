@@ -15,18 +15,18 @@ exports.Ti = {
 		},
 		Platform : {
 			osname : "android" ,
-		    version : "2.1",
-		    density : 0 , // 显示像素密度
-		    dpi : 0 , 
-		    DisplayCaps : {
-		    	logicalDensityFactor : 0 ,
-		    },
+		    version : "2.2",
+		    density : "medium" , // 显示像素密度
 		    displayCaps : {
 		    	platformHeight : 480 ,
 		    	platformWidth  : 320 ,
-		    	xdpi : 0 ,
-		    	ydpi : 0 ,
+		    	dpi : 1 , 
+		    	logicalDensityFactor : 160 ,
+		    	xdpi : 160 ,
+		    	ydpi : 160 ,
 		    },
+		    
+		    availableMemory : 0 ,
 		},
 		
 		
@@ -65,6 +65,8 @@ exports.Ti = {
 			createView   : createCustomLayout,
 			createWebView   : createCustomLayout,
 			createWindow   : createCustomLayout,
+			
+			currentWindow : undefined ,
 		},  
 		Filesystem : {
 			getFile : function( path ){ return new File(path); } , 
@@ -75,14 +77,22 @@ exports.Ti = {
 
 function createCustomLayout()
 {
-	console.log( arguments[0] );
-	
 	return new layout(arguments[0]) ;
 }
 
 function layout(opt)
 {
 	this.opt = opt ;
+	
+	this.open = function()
+	{
+	    return this ;
+	};
+	
+	this.add = function()
+	{
+	    return this;
+	};
 	
 	this.getOpt = function()
 	{
@@ -99,7 +109,6 @@ function File( path )
 	
 	this.exists = function()
 	{
-//		fs.exists = fs.exists || require('path').exists;
 		fs.existsSync = fs.existsSync || require('path').existsSync;
 		return fs.existsSync( this.path) ; // node version > 0.6  , current version 0.8.11
 	};
