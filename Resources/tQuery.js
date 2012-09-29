@@ -26,11 +26,6 @@
 
 
 
-
-
-
-
-
 /**DEBUG{{**/
 if( typeof Ti === "undefined")
 {
@@ -44,13 +39,15 @@ if( typeof Ti === "undefined")
  * 遍历数组元素
  * @param callback 回调函数
  */
-Array.prototype.foreach = function( callback )
-{
-	for( var i = 0 ,len = this.length ; i< len ; i++)
+(function(){
+	Array.prototype.foreach = function( callback )
 	{
-		callback.call( callback , i , this[i] , this );
-	}
-};
+	        for( var i = 0 ,len = this.length ; i< len ; i++)
+	        {
+	                callback.call( callback , i , this[i] , this );
+	        }
+	};
+})();
 
 
 
@@ -208,6 +205,7 @@ tQuery.prototype = tQuery.inArray = function( elem, arr, i ) {
 
 	return -1;
 };
+
 tQuery.prototype = tQuery.isObject = function( obj )
 {
 	return tQuery.type(obj) === "object" ;
@@ -217,7 +215,6 @@ tQuery.prototype = tQuery.isArray = function(array)
 {
     return tQuery.type(array) === "array" ;
 };
-
 
 tQuery.prototype = tQuery.merge = function(o,n)
 {
@@ -285,6 +282,11 @@ tQuery.prototype = tQuery.device = {
  * css 样式，全局使用
  */
 tQuery.prototype = tQuery.css = {};
+
+/**
+ * 存储tQuery对象，防止多次创建
+ */
+tQuery.prototype = tQuery.store = {} ;
 
 /**
  * 全局缓存
@@ -571,6 +573,30 @@ tQuery.prototype = tQuery.data = function( obj , key , value)
     return obj.data( key , value );
 };
 
+
+/**
+ * tQuery 支持扩展
+ * @param {Object} object
+ * @returns 
+ */
+tQuery.prototype = tQuery.extend = function(object)
+{
+	if( !tQuery.isObject(object) )
+	{
+		return tQuery.console.error( 'tQuery function extend expect params object as object valid ');
+	}
+	
+	var options = tQuery.clone( object );
+	
+	for( var p in options )
+	{
+		tQuery[p] = options[p] ;
+	}
+};
+
+
+
+
 /** 
  *  恢复使用别名$,和jQuery还是有很大区别的，
  *  jQuery依赖window，而这里不依赖，别名在引入的时候人为指定
@@ -583,13 +609,14 @@ tQuery.prototype = tQuery.noConflict = function( deep )
 
 tQuery.prototype = tQuery.memoryMonitor = function()
 {
+	var win = undefined ;
     if( Ti.UI.currentWindow )
     {
-        var win = Ti.UI.currentWindow ;
+        win = Ti.UI.currentWindow ;
     }
     else
     {
-        var win = Ti.UI.createWindow({backgroundColor:"#ffffff"});
+        win = Ti.UI.createWindow({backgroundColor:"#ffffff"});
         win.open();
     }
     
@@ -605,10 +632,9 @@ tQuery.prototype = tQuery.memoryMonitor = function()
     var updateMemory = function ()
     {
         memory.text = Ti.Platform.availableMemory ;
-        setTimeout(updateMemory, 500);
-    }
+    };
     
-    updateMemory();
+    setInterval(updateMemory, 500);
 };
 
 
@@ -690,6 +716,10 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
     var ele = tQuery.__createElementByType(type , tQuery.UiChain("chain")[current_created_layout]['opt'] );// ti ui object
     tQuery.UiChain("chain")[current_created_layout]['ti'] = ele ;
     
+    // 绑定事件
+    tQuery.__addEventListener( ele , current_created_layout );
+    
+    // 创建并添加子元件
     var children = tQuery.UiChain("chain")[current_created_layout]['children'] ;
     children.foreach( function(i , tQueryid ){
         // 创建并添加到ui chain上
@@ -712,16 +742,31 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
     return ;
 };
 
-
-
-tQuery.prototype = tQuery.__createElementByType = function( type , opt )
+/**
+ * 增加事件绑定
+ * @param {Object} to
+ * @param {Object} tQueryid
+ */
+tQuery.prototype = tQuery.__addEventListener = function( to , tQueryid )
 {
-    opt = tQuery.isObject(opt) ? tQuery.clone(opt) : {};
-    if( -1 === tQuery.inArray( type , tQuery.elements ) )
-    {
-        return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
-    }
-    
+	if( !to )
+	{
+		return tQuery.console.error("tQuery.__addEventListener expect params to as ti object");
+	}
+	var events = tQuery.UiChain("chain")[tQueryid]['event'];
+	if( events && events.length > 0 )
+	{
+		for( var type in events )
+		{
+			to.addEventListener( type , events[type] );
+		}
+	};
+	
+	return ;
+}
+
+tQuery.prototype = tQuery.__getCreateUiAPI = function( type )
+{
     switch( type )
     {
         case 'AlertDialog': 
@@ -827,20 +872,26 @@ tQuery.prototype = tQuery.__createElementByType = function( type , opt )
             api = Ti.UI.createWindow ; 
             break; 
         default:
-            tQuery.console.error("Unrecognized UI element type " + k );
+            return tQuery.console.error("Unrecognized UI element type " + type );
             break;
-    }
+    };
     
-    // TODO 添加css样式
-    // 猜测问题: 第二个参数返回了tQuery.css , 合并函数将opt的引用传给了tQuery.css 
-    //var option = tQuery.merge( opt , tQuery.__getStyle( opt ) ); 
-    var option = tQuery.__getStyle( opt )  ; // 问题出在这个getStyle 上
-    
-    return ;
-    return api(option);
+    return api ;
 };
 
-
+tQuery.prototype = tQuery.__createElementByType = function( type , opt )
+{
+    opt = tQuery.isObject(opt) ? tQuery.clone(opt) : {};
+    if( -1 === tQuery.inArray( type , tQuery.elements ) )
+    {
+        return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
+    }
+    
+    var option = tQuery.__getStyle( opt )  ; 
+    var api = tQuery.__getCreateUiAPI(type);
+    
+    return api(option);
+};
 
 tQuery.prototype = tQuery.fn  = {
     /**
@@ -1104,7 +1155,7 @@ tQuery.prototype = tQuery.fn  = {
     	// The default length of a tQuery object is 0
     	this.length = 0 ;
 
-        this.context ; //  当前处理对象环境
+        this.context = undefined ; //  当前处理对象环境
         
         this.selector = selector ; // 当前对象的选择器
         
@@ -1135,59 +1186,73 @@ tQuery.prototype = tQuery.fn  = {
         	    return selector(tQuery);
         	}
         	
-        	// handle number internal use only 
+        	// handle number internal use only  
+        	// 将对象存储起来
         	if( tQuery.isNumber(selector) )
         	{
         	   if( tQuery.UiChain("chain")[selector] )
         	   {
-        	       this.context = [selector] ;
-        	       this.length  = 1 ;
+        		   if( tQuery.store[selector] )
+        		   {
+        			   return tQuery.store[selector] ;
+        		   }
+        		   else
+        		   {
+        			   this.context = [selector] ;
+        			   this.length  = 1 ;
+        			   
+        			   tQuery.store[selector] = this ;
+        			   
+        			   return this ;
+        		   }
         	       
-        	       return this.__findChild( parent ) ;
+//        	       return this.__findChild( parent ) ;
         	   }
         	}
         	
-        	// TODO handle #id 尽量不用正则，优化性能
-        	var match = /^(?:[^#<]*(<[\w\W]+>)[^>]*$|#([\w\-]*)$)/.exec(selector);
-        	if(match && match[2] )
+        	// handle #id 不用正则，优化性能
+        	if( tQuery.type(selector) === "string")
         	{
-        	   var id = match[2];
-        	   
-        	   if( tQuery.UiChain("id")[id] )
+        	   if(  selector.charAt(0) === '#' )
         	   {
-                    this.context = [ tQuery.UiChain("id")[id]  ]  ; // id 不可以有多个
-                    this.length = 1 ;
-
-                    return this.__findChild( parent ) ;
+        		   var id = selector.slice(1);
+        		   this.context = [ tQuery.UiChain("id")[id]  ]  ; // id 不可以有多个
+        		   this.length = 1 ;
         	   }
+        	   // handle .class
+        	   else if( selector.charAt(0) === '.' )
+        	   {
+        		   var cls = selector.slice(1);
+        		   if( tQuery.UiChain("cls")[cls] && tQuery.UiChain("cls")[cls].length > 0 ) // 数组
+        		   {
+        			   this.context = tQuery.UiChain("cls")[cls] ;
+        			   this.length = this.context.length ;
+        			   
+        		   }
+        	   }
+        	   // handle tag 
+        	   else if( -1 !== tQuery.inArray( selector , tQuery.elements ) )
+        	   {
+               		if( tQuery.UiChain("tag")[selector] && tQuery.UiChain("tag")[selector].length > 0 ) 
+               		{
+               			this.context = tQuery.UiChain('tag')[selector] ;
+               			this.length = this.context.length ;
+               		}
+        	   }
+
+        	   return this.__findChild( parent ) ;
+        	   
         	}
-        	
-        	// handle .class
-        	if( tQuery.type(selector) === "string" && selector.charAt(0) === '.' )
-    		{
-        		var cls = selector.slice(1);
-        		if( tQuery.UiChain("cls")[cls] && tQuery.UiChain("cls")[cls].length > 0 ) // 数组
-    			{
-        			this.context = tQuery.UiChain("cls")[cls] ;
-        			this.length = this.context.length ;
-        			
-        			return this.__findChild( parent ) ;
-    			}
-    		}
-        	
-        	
-        	// handle tag 
-        	if( -1 !== tQuery.inArray( selector , tQuery.elements ) )
-    		{
-        		if( tQuery.UiChain("tag")[selector] && tQuery.UiChain("tag")[selector].length > 0 ) 
-        		{
-        			this.context = tQuery.UiChain('tag')[selector] ;
-        			this.length = this.context.length ;
-        			
-        			return this.__findChild( parent ) ;
-        		}
-    		}
-        	
+
+                // extend [0] [1] etc
+		if( this.length > 0 )
+		{
+			var that = this;
+			this.context.foreach( function( i , tQueryid ){
+				that[i] = tQuery(tQueryid);
+			});
+		}
+		
         	// default 
         	return this ; 
         };
@@ -1339,23 +1404,71 @@ tQuery.prototype = tQuery.fn  = {
     		return this.length;
     	};
     	
+	/**
+	 * 执行ti对象的方法
+	 * @param {String} method
+	 */
+	this.__method = function( method )
+	{
+            if( this.context[0] 
+                && tQuery.UiChain("chain")[this.context[0]] 
+                && tQuery.UiChain("chain")[this.context[0]]['ti'] 
+                && tQuery.UiChain("chain")[this.context[0]]['ti'][method]
+            )
+            {
+                    tQuery.UiChain("chain")[this.context[0]]['ti'][method]();
+            }
+            else
+            {
+                tQuery.console.error( tQuery.UiChain("chain")[this.context[0]]['ti'] + 'has no method ' + method );
+            }
+            
+            return this ;
+		
+	}
+	
     	this.open = function()
     	{
-    	    if( this.context[0] 
-    	        && tQuery.UiChain("chain")[this.context[0]] 
-    	        && tQuery.UiChain("chain")[this.context[0]]['ti'] 
-    	        && tQuery.UiChain("chain")[this.context[0]]['ti']['open']
-    	    )
-    	    {
-        	    tQuery.UiChain("chain")[this.context[0]]['ti'].open();
-    	    }
-    	    else
-    	    {
-    	        tQuery.console.error( tQuery.UiChain("chain")[this.context[0]]['ti'] + 'has no method open ');
-    	    }
-    	    
-    	    return this ;
+		return this.__method( 'open' );
     	};
+	
+	this.hide = function()
+	{
+		return this.__method( 'hide' );
+	}
+	
+	this.close = function()
+	{
+		return this.__method( 'close' );
+	}
+	
+	/**
+	 * gc 
+	 */
+	this.gc = function()
+	{
+		if( this.length > 0 )
+		{
+			this.context.foreach( function(i , tQueryid ){
+				tQuery.store[tQueryid] = null ;
+				delete tQuery.store[tQueryid];
+
+                                ["chain", 'cls', 'tag' ].foreach( function( j , m ){
+					tQuery.UiChain(m)[tQueryid] = null ;
+					delete tQuery.UiChain(m)[tQueryid];
+				});
+			});
+		}
+	};
+	
+	this.bind = function( type , callback )
+	{
+		this.__getTiObject().foreach( function(i, to ){
+			to.addEventListener( type , callback );
+		});
+		
+		return this ;
+	};
     	
     	/**
     	 * 迭代tQuery对象的每一个元素 
@@ -1632,11 +1745,45 @@ tQuery.prototype = tQuery.fn  = {
     		
     		return className ? this.__setClass( className , false ) : this ; 
     	};
+
+        var that = this ;	
+	// bind event
+	// $().click(function(){});
+	(function(that){
+	        var list = "click dblclick doubletap longclick longpress pinch singletap swipe touchcancel touchend touchmove touchstart"; 
+	        list.split(" ").foreach( function(i , type ){
+	                that[type] = function(){
+				var arg = arguments[0] ;
+				that.__getTiObject().foreach( function( i , to ){
+					if( tQuery.type(arguments[0]) === 'function' )
+					{
+					        to.addEventListener( type , arg );
+					}
+					else
+					{
+						to.fireEvent( type , arg  );
+					}
+				});
+			};
+	        });
+	})(that);
     	
     	return this.__construct(selector , parent ) ;
 
     }
     
 };
+
+
+
+// loadStyle
+
+// map elements to $
+(function(tQuery){
+	tQuery.elements.foreach( function(i , type ){
+		tQuery[type] = tQuery.__getCreateUiAPI( type ) ;
+	});
+})(tQuery);
+
 
 exports.tQuery = tQuery ;
