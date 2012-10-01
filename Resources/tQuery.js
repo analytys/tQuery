@@ -82,6 +82,186 @@ tQuery.prototype = tQuery.UiChain = (function(){
     };
 })();
 
+
+
+tQuery.prototype = tQuery.UI = {
+    
+    notification : {
+        // 保存全局需要的变量    
+        __store : (function(){
+                    var data = {};
+                    return function(key, val ){
+                        if (val === undefined)
+                        {
+                            return data[key] ;
+                        } 
+                        else
+                        {
+                            data[key] =  val ; 
+                            return data[key] ;
+                        } 
+                    };
+                })(),
+
+        // 添加消息到消息队列中，然后通知队列执行函数
+        __addNotificationToQueue : function( opt , type , win )
+        {
+            var queue = tQuery.UI.notification.__store("queue") || [] ;
+            queue.push( { type : type , opt : opt , win : win } );
+            tQuery.UI.notification.__store("queue" , queue );
+            
+            return tQuery.UI.notification.__store("running") ? true : tQuery.UI.notification.__note() ; 
+        },
+    
+        // 核心通知函数
+        __note : function(opt, type , win ){
+            var queue = tQuery.UI.notification.__store("queue");
+            if( queue.length <= 0 )
+            {
+                return tQuery.UI.notification.__store("running" , false );
+            }
+            
+            tQuery.UI.notification.__store("running" , true );
+            
+            var backgroundView = tQuery.UI.notification.__store("backgroundView");
+            if(!backgroundView)
+            {
+                backgroundView = Ti.UI.createView({
+                    width:Ti.Platform.displayCaps.platformWidth - 40 ,
+                    height : Ti.UI.SIZE ,
+                    left : 20 ,
+                    right : 20 ,
+                });
+                
+                tQuery.UI.notification.__store("backgroundView" , backgroundView );
+            }
+                
+            var noteView = tQuery.UI.notification.__store("noteView");
+            if( !noteView )
+            {
+                  noteView = Titanium.UI.createView({
+                          borderRadius: 8 ,    
+                          backgroundColor:'#5a555a',
+                          borderColor : "#9ca29c",
+                          shadowColor: '#adaead',
+                          shadowOffset: {x:5, y:5},
+                          borderWidth: 2 ,
+                          height:Ti.UI.SIZE ,
+                          width: Ti.UI.SIZE ,
+                          opacity : 0 ,
+                    });
+                tQuery.UI.notification.__store("noteView" , noteView );
+            }
+
+                
+            var label = tQuery.UI.notification.__store("label" );
+            if( !label )
+            {
+                var option = {
+                    "text": "" ,
+                    "height": Ti.UI.SIZE,
+                    "width": Ti.UI.SIZE,
+                    "color":"#ffffff",
+                    "left": 15,
+                    "right":15,
+                    "bottom":10,
+                    "top":10,
+                    "textAlign": Ti.UI.TEXT_ALIGNMENT_LEFT,
+                    "font": {
+                        "fontSize": 14
+                    },
+                    opacity : 0 ,
+                };
+                label = Ti.UI.createLabel(option);    
+                tQuery.UI.notification.__store("label" , label );
+            }
+
+            noteView.opacity = label.opacity = 0 ;
+            if( !tQuery.UI.notification.__store("addBefore" ) )
+            {
+                noteView.add( label );
+                backgroundView.add( noteView );
+                tQuery.UI.notification.__store("addBefore" , true  )
+            }
+                
+            function remove()
+            {
+                if( !disappeard )
+                {
+                    disappear();
+                }                           
+            }
+                
+            function disappear()
+                {
+                        var p = setInterval( function(){
+                            noteView.opacity = label.opacity -= 0.1 ;
+                            if( noteView.opacity <= 0 )
+                            {
+                                clearInterval( p );
+                                win.remove( backgroundView ) // 只是remove而已                                    
+                                noteView.removeEventListener("click", remove );
+                                
+                                tQuery.UI.notification.__note(); // 不要定时器，递归执行
+                            }
+                        } , 40  );
+                };
+
+            function appear(){
+                    var t = setInterval( function(){
+                        noteView.opacity = label.opacity += 0.1 ;
+                        if( noteView.opacity >=1 )
+                        {
+                            clearInterval( t );
+                            noteView.opacity = label.opacity = 1 ;
+                        }
+                    } , 40  );
+                };
+                
+            
+                
+            msg = queue.shift();
+            win = msg.win ;
+            opt = msg.opt ;
+                
+            tQuery.UI.notification.__store("queue" , queue );
+                
+            // 如果队列长度大于1 后面还有等待执行的消息，则本次消息显示时间为1S
+            label.text = opt.text || "     ";
+            win.add( backgroundView );
+            
+            var disappeard = false;
+            
+            // 添加点击事件，点击以后消息立刻消失
+            // 当前这一条消失，显示消息队列的下一条
+            // FIXME 如果点击了，后面会有一段延迟才会显示下一条消息
+            noteView.addEventListener("click", remove );
+            appear();
+            setTimeout( function(){
+                disappeard = true; //  开始消失
+                disappear();
+                
+            }, queue.length >= 1 ? 2000 : 3000 );        },
+        
+        success : function()
+        {
+            
+        },
+        
+        error : function( opt , win )
+        {
+            opt = tQuery.isObject(opt) ?  opt :  {};
+            win = tQuery.getTiInstance( win );
+            
+            return tQuery.UI.notification.__addNotificationToQueue( opt , "success" , win );
+        }
+        
+    }
+    
+    
+}
+
+
 /* ui elements */
 tQuery.prototype = tQuery.elements = new Array(
         "Window" , 
@@ -179,6 +359,8 @@ tQuery.prototype = tQuery.type =  function(obj)
            return "regExp";  
        case "[object Object]":  
            return "object";  
+       case "[object TiBaseWindow]":
+            return 'TiBaseWindow' ;
        default:
            return s ;  
    }
@@ -324,6 +506,24 @@ tQuery.prototype = tQuery.getMulitClass = function(str)
     return tQuery.unique(ret);
 };
 
+
+tQuery.prototype = tQuery.getTiInstance = function( obj )
+{
+    if( tQuery.istQueryObject(obj) )
+    {
+        return obj.getNativeObject();
+    }
+    else if( tQuery.type(obj) === 'TiBaseWindow' )
+    {
+        return obj ;
+    }
+    else
+    {
+        tQuery.console.error( "tQuery.getTiInstance expect params obj as tQuery Object or TiBaseWindow" );
+        return obj ;
+    }
+}
+
 /**
  * 
  * internal use only 
@@ -387,6 +587,7 @@ tQuery.prototype = tQuery.__getStyle = function( opt )
     if( type )
     {
     	a = tQuery.css[type] || {} ; // 在这之前已经改变了tQuery.css的值
+    	a = tQuery.merge( a , opt );
     }
     
     if( cls )
@@ -607,27 +808,31 @@ tQuery.prototype = tQuery.noConflict = function( deep )
 };
 
 
-tQuery.prototype = tQuery.memoryMonitor = function()
+tQuery.prototype = tQuery.memoryMonitor = function(win)
 {
-	var win = undefined ;
-    if( Ti.UI.currentWindow )
+    if( !win  )
     {
-        win = Ti.UI.currentWindow ;
+        currentWindow = Ti.UI.createWindow({backgroundColor:"#ffffff"});
+        currentWindow.open();
+    }
+    
+    if( tQuery.istQueryObject(win) )
+    {
+        currentWindow = win.getNativeObject();
     }
     else
     {
-        win = Ti.UI.createWindow({backgroundColor:"#ffffff"});
-        win.open();
+        currentWindow = win ;
     }
     
     var memory = Ti.UI.createLabel({
-        bottom : 0 , 
+        top : 0 , 
         right : 0 ,
         color : "#ff0000",
         zIndex: 10000
     });
     
-    win.add(memory);
+    currentWindow.add(memory);
     
     var updateMemory = function ()
     {
@@ -730,12 +935,18 @@ tQuery.prototype = tQuery.__createTiUi = function(current_created_layout , paren
     {
         // children 添加到parent上
         var p  = tQuery.UiChain("chain")[ parent.context[0] ]['ti'] ;
-        if( tQuery.typep(['add']) !== 'function' )
+        if( tQuery.type(p['addTab']) == 'function' )
         {
-            return tQuery.console.error( "object p has no method add");
+            p.addTab( ele );
         }
-        
-        p.add( ele );
+        else if( tQuery.type(p['add']) == 'function' )
+        {
+            p.add( ele );
+        }
+        else
+        {
+            return tQuery.console.error( "object p has no method add or addTab");
+        }
     }
     
     // 这里不能将global对象返回
@@ -754,13 +965,11 @@ tQuery.prototype = tQuery.__addEventListener = function( to , tQueryid )
 		return tQuery.console.error("tQuery.__addEventListener expect params to as ti object");
 	}
 	var events = tQuery.UiChain("chain")[tQueryid]['event'];
-	if( events && events.length > 0 )
-	{
-		for( var type in events )
-		{
-			to.addEventListener( type , events[type] );
-		}
-	};
+	// bug fix events object has no length prototype
+    for( var type in events )
+    {
+        to.addEventListener( type , events[type] );
+    }
 	
 	return ;
 }
@@ -887,7 +1096,7 @@ tQuery.prototype = tQuery.__createElementByType = function( type , opt )
         return tQuery.console.error("pass internal method __createElementByType unexpect params type " + type );
     }
     
-    var option = tQuery.__getStyle( opt )  ; 
+    var option = tQuery.__getStyle( opt )  ;  // 这里把原始的opt给丢掉了
     var api = tQuery.__getCreateUiAPI(type);
     
     return api(option);
@@ -1343,6 +1552,14 @@ tQuery.prototype = tQuery.fn  = {
     	};
     	
     	/**
+    	 * 获取titanium native object  
+    	 */
+    	this.getNativeObject = function()
+    	{
+    	    return this.__getTiObject()[0];
+    	}
+    	
+    	/**
     	 * 获取UiChain 中chain链里的对应tQueryid 对象
     	 */
     	this.__getUiChainObject = function( tQueryid , key )
@@ -1408,7 +1625,7 @@ tQuery.prototype = tQuery.fn  = {
 	 * 执行ti对象的方法
 	 * @param {String} method
 	 */
-	this.__method = function( method )
+	this.__method = function( method , obj )
 	{
             if( this.context[0] 
                 && tQuery.UiChain("chain")[this.context[0]] 
@@ -1416,7 +1633,14 @@ tQuery.prototype = tQuery.fn  = {
                 && tQuery.UiChain("chain")[this.context[0]]['ti'][method]
             )
             {
+                if( typeof obj !== 'undefined') 
+                {
+                    tQuery.UiChain("chain")[this.context[0]]['ti'][method]( obj );
+                }
+                else
+                {
                     tQuery.UiChain("chain")[this.context[0]]['ti'][method]();
+                }
             }
             else
             {
@@ -1431,6 +1655,16 @@ tQuery.prototype = tQuery.fn  = {
     	{
 		return this.__method( 'open' );
     	};
+    	
+    	this.add = function()
+    	{
+    	    return this.__method( 'add' , tQuery.getTiInstance(arguments[0]) );
+    	}
+    	
+    	this.remove = function()
+    	{
+    	    return this.__method( 'remove' , tQuery.getTiInstance(arguments[0]) );
+    	}
 	
 	this.hide = function()
 	{
