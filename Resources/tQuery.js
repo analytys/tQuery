@@ -86,6 +86,23 @@ tQuery.prototype = tQuery.UiChain = (function(){
 
 tQuery.prototype = tQuery.UI = {
     
+    currentActiveWindow : undefined ,
+    
+    resourcesDirectory : Ti.Filesystem.resourcesDirectory + "images" + Ti.Filesystem.separator , // 目前设置背景图只能放在根目录，给以后集中管理提供方便 
+    
+    rPath : function( file )
+    {
+        return  tQuery.UI.resourcesDirectory + file ;
+    },
+    
+    /**
+     * 设置当前活动窗口
+     */
+    setCurrentActiveWindow : function( win )
+    {
+        return tQuery.UI.currentActiveWindow = win ; 
+    },
+    
     notification : {
         // 保存全局需要的变量    
         __store : (function(){
@@ -104,17 +121,17 @@ tQuery.prototype = tQuery.UI = {
                 })(),
 
         // 添加消息到消息队列中，然后通知队列执行函数
-        __addNotificationToQueue : function( opt , type , win )
+        __addNotificationToQueue : function( opt , type  )
         {
             var queue = tQuery.UI.notification.__store("queue") || [] ;
-            queue.push( { type : type , opt : opt , win : win } );
+            queue.push( { type : type , opt : opt } );
             tQuery.UI.notification.__store("queue" , queue );
             
             return tQuery.UI.notification.__store("running") ? true : tQuery.UI.notification.__note() ; 
         },
     
-        // 核心通知函数
-        __note : function(opt, type , win ){
+        // 核心通知函数,必须要知道当前活动窗口是哪个，否则会造成显示错地方
+        __note : function(){
             var queue = tQuery.UI.notification.__store("queue");
             if( queue.length <= 0 )
             {
@@ -131,7 +148,8 @@ tQuery.prototype = tQuery.UI = {
                     height : Ti.UI.SIZE ,
                     left : 20 ,
                     right : 20 ,
-                });
+                    top : tQuery.device.height *  0.618 ,
+                    zIndex : 10000 ,                });
                 
                 tQuery.UI.notification.__store("backgroundView" , backgroundView );
             }
@@ -153,7 +171,6 @@ tQuery.prototype = tQuery.UI = {
                 tQuery.UI.notification.__store("noteView" , noteView );
             }
 
-                
             var label = tQuery.UI.notification.__store("label" );
             if( !label )
             {
@@ -168,7 +185,7 @@ tQuery.prototype = tQuery.UI = {
                     "top":10,
                     "textAlign": Ti.UI.TEXT_ALIGNMENT_LEFT,
                     "font": {
-                        "fontSize": 14
+                        "fontSize": Math.max( Math.min( Math.ceil(tQuery.device.width / 320) * 14 , 36 ) , 14) ,
                     },
                     opacity : 0 ,
                 };
@@ -186,8 +203,14 @@ tQuery.prototype = tQuery.UI = {
                 
             function remove()
             {
+                if( appeard )
+                {
+                    clearInterval( t );
+                }
+                
                 if( !disappeard )
                 {
+                    disappeard = true; //  开始消失
                     disappear();
                 }                           
             }
@@ -208,12 +231,14 @@ tQuery.prototype = tQuery.UI = {
                 };
 
             function appear(){
-                    var t = setInterval( function(){
+                    appeard = true ;
+                    t = setInterval( function(){
                         noteView.opacity = label.opacity += 0.1 ;
                         if( noteView.opacity >=1 )
                         {
                             clearInterval( t );
                             noteView.opacity = label.opacity = 1 ;
+                            appeard = false ;
                         }
                     } , 40  );
                 };
@@ -221,7 +246,11 @@ tQuery.prototype = tQuery.UI = {
             
                 
             msg = queue.shift();
-            win = msg.win ;
+            win = tQuery.getTiInstance( tQuery.UI.currentActiveWindow );
+            if( !win )
+            {
+                return tQuery.console.error( "tQuery.UI.currentActiveWindow expect app current active window to play notification");
+            }
             opt = msg.opt ;
                 
             tQuery.UI.notification.__store("queue" , queue );
@@ -231,29 +260,65 @@ tQuery.prototype = tQuery.UI = {
             win.add( backgroundView );
             
             var disappeard = false;
+            var appeard = false;
+            var t = undefined ; // 淡入timer
             
             // 添加点击事件，点击以后消息立刻消失
             // 当前这一条消失，显示消息队列的下一条
-            // FIXME 如果点击了，后面会有一段延迟才会显示下一条消息
-            noteView.addEventListener("click", remove );
+            // 点击事件必须在弹出以后，否则会造成闪动
             appear();
+            noteView.addEventListener("click", remove );
+            
+            var blank = 3000 ; 
+            if( queue.length >= 1 )
+            {
+               blank = Math.ceil( queue[0].opt.text.replace(/[^\x00-\xff]/g,"aa").length/32 ) ;
+               
+               blank = blank > 5 ? 5 : blank ;
+               blank = blank < 1 ? 1 : blank ;
+               blank *= 1000 ;  
+            }  
+            
+            // 假设阅读速度为4词/s ,一个单词8个字符
             setTimeout( function(){
-                disappeard = true; //  开始消失
-                disappear();
-                
-            }, queue.length >= 1 ? 2000 : 3000 );        },
+                remove();
+            }, blank );        },
+
+        __getOptions : function( opt )
+        {
+            if( tQuery.type(opt) === 'string')
+            {
+                option = { text : opt };
+            }
+            else if( tQuery.isObject(opt) )
+            {
+                option = tQuery.clone( opt ) ;
+            }
+            else
+            {
+                option = {} ;
+            }
+
+            return option ;
+        },        
         
         success : function()
         {
             
         },
         
-        error : function( opt , win )
+        /**
+         * 出错提示
+         * 注意： 如果消息提示框没有显示出来，很有可能是因为当前窗口没有设置正确 
+         * @param {Object|String} opt 消息或者包含自定义选项的消息，为以后做扩展
+         */
+        error : function( opt )
         {
-            opt = tQuery.isObject(opt) ?  opt :  {};
-            win = tQuery.getTiInstance( win );
             
-            return tQuery.UI.notification.__addNotificationToQueue( opt , "success" , win );
+            return tQuery.UI.notification.__addNotificationToQueue( 
+                                             tQuery.UI.notification.__getOptions( opt ),
+                                             "success"
+                                             );
         }
         
     }
@@ -443,6 +508,44 @@ tQuery.prototype = tQuery.trim = function(str)
     return str.replace(/(^\s*)|(\s*$)/g, ""); 
 };
 
+// TODO 需要测试获取设备osname 是否正确
+tQuery.prototype = tQuery.f = function(num)
+{
+    num = Number(num);
+    if( Ti.UI.Android )
+    {
+        return num + "dp" ;
+    }
+    else if( tQuery.device.osname == 'ipad' )
+    {
+        return Math.ceil( tQuery.device.width/320 * num ) ;
+    }
+    else if( tQuery.device.osname == 'ios' )
+    {
+        return Math.ceil( tQuery.device.width/320 * num ) ;
+    }
+    else
+    {
+        return num ;
+    }
+};
+
+tQuery.prototype = tQuery.m = function(num)
+{
+    return tQuery.f( num );
+};
+
+// 给定字体大小计算高度
+tQuery.prototype = tQuery.c = function(num)
+{
+    return Number(tQuery.f( num ).replace(/[^\d]*/ig,""));
+};
+
+// 用于普通的定位 height,width,left,top,right,bottom ...
+tQuery.prototype = tQuery.p = function(num)
+{
+    return Number(tQuery.f( num ).replace(/[^\d]*/ig,""));
+};
 
 
 /**
@@ -816,14 +919,7 @@ tQuery.prototype = tQuery.memoryMonitor = function(win)
         currentWindow.open();
     }
     
-    if( tQuery.istQueryObject(win) )
-    {
-        currentWindow = win.getNativeObject();
-    }
-    else
-    {
-        currentWindow = win ;
-    }
+    currentWindow = tQuery.getTiInstance( win );    
     
     var memory = Ti.UI.createLabel({
         top : 0 , 
