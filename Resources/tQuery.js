@@ -321,8 +321,327 @@ tQuery.prototype = tQuery.UI = {
                                              );
         }
         
-    }
+    },
     
+    /**
+     * select country scrollview 
+     * @param {Object} data 
+     * @param {Object} options
+     * @param {function} click callback function
+     * @return {Object TiBaseView}  
+     */
+    ScrollView : function( data , options , callback  )
+    {
+        this.width = "92%" ; // default width ;
+        
+        this.internalViewMarginTop = 8 ; // row view padding
+        
+        this.notificationHeight = "9%"; // 顶部提示框高度
+        
+        this.borderRadius = 8 ; // 圆角
+        
+        
+        this.createSingleRow ; // 如果这个属性被赋值函数，则根据这个函数创建row view 
+    
+        this.data = data ;
+        
+        this.callback = callback ;
+        
+        this.options = {} ;
+        
+        options = tQuery.isObject( options ) ? options : {};
+            
+        // 默认的选项
+        var opt = {
+            "line":{
+                width : this.width ,
+                height:1 ,
+                borderWidth : 0.5 ,
+                borderColor : "#e0e0e0",
+            },
+            "mask" : {
+                width: Ti.UI.FILL,
+                height:this.internalViewMarginTop ,
+                backgroundColor:"#ffffff",
+            },
+            "header" :{
+                color:"#000000",
+                top: tQuery.m(10),
+                left : 15 , 
+                shadowOffset : {x:1,y:1},
+                shadowColor : "#666666",
+                textAlign:Ti.UI.TEXT_ALIGNMENT_LEFT ,
+                font:{
+                    fontSize : tQuery.f(16),
+                    fontWeight:"bold",
+                },
+                width: Ti.UI.FILL,
+                height:Ti.UI.SIZE,
+            },
+            "scrollView" : {
+                top : this.notificationHeight ,
+                bottom : "3%" ,
+                contentHeight: 'auto',
+                layout: 'vertical',
+            },
+            "notificationHeaderView" : {
+                height: this.notificationHeight ,
+                width : "100%",
+                backgroundColor : "#8091ab",
+                top : 0 ,
+                backgroundGradient: {
+                    type: 'linear',
+                    startPoint: { x: '50%', y: '0%' },
+                    endPoint: { x: '50%', y: '100%' },
+                    colors: [ 
+                    { color: '#b1bccc', offset: 0.0},
+                     { color: '#9aa8bd', offset: 0.25 }, 
+                    { color: '#7a8ca6', offset: 0.5 } ,
+                    { color: '#7688a3', offset: 0.75 },
+                    { color: '#7185a1', offset: 1 }
+                    ]
+                }
+            },
+            "notificationHeaderLabel" : {
+                text : "Select your favorite country",
+                left:10,
+                right:10,
+                top:10,
+                bottom:10,
+                width:Ti.UI.SIZE,
+                height : Ti.UI.SIZE,
+                textAlign:Ti.UI.TEXT_ALIGNMENT_CENTER,
+                font:{
+                    fontSize: tQuery.f(18)
+                    },
+                color : "#ffffff",
+            },
+            "backgroundView":{
+                backgroundColor: '#C4CCD5',
+                backgroundImage : tQuery.UI.rPath( "selectCountryBg.png" )  ,
+            }
+    
+        };
+    
+        this.options = tQuery.merge( opt , options );
+        
+        this.create = function( options )
+        {
+            return this.__create();
+        }
+        
+        this.__create = function()
+        {
+            // 第一个row和最后一个row用圆角
+            if( !this.data )
+            {
+                return false ;
+            }
+            
+            var backgroundView = this.createBackgroundView();
+            
+            var scrollView = this.createScrollView();
+            for( var area in data )
+            {
+                var header = this.createAreaHeader( area );
+                scrollView.add( header );
+                // position ==  0 
+                var i = 0 ;
+                var len=data[area].length;
+                for( i ; i<len ; i++)
+                {
+                    var addLine = true ;
+                    var opt = data[area][i] ; 
+                    opt["position"] = i ;
+                    if( i == len - 1 ) // last 
+                    {
+                        opt["position"] = -1 ;
+                        addLine = false ;
+                    }
+                    
+                    var row = this.__createSingleRow( opt );
+                    scrollView.add( row );
+                    
+                    if( addLine )
+                    {
+                        scrollView.add( this.createLine() );
+                    }    
+                }
+            }
+            
+            backgroundView.add( this.createHeaderNotification() );
+            backgroundView.add( scrollView );
+            
+            return backgroundView ;
+        }
+        
+        
+        
+        // 创建一个 row  新的布局只要继承这个方法即可
+        this.__createSingleRow = function( opt )
+        {
+            if( this.createSingleRow )
+            {
+                return this.createSingleRow.call( this , opt );
+            }
+            
+            const IMAGE_WH = 52 ;  // 图像尺寸
+            const NAME_MARGIN_LEFT = 10 ; // 名称margin-left
+            const NAME_FONT_SIZE = 18 ;   // 名称字体大小
+            const DESCRIPTION_FONT_SIZE = 15 ; // 描述字体大小
+            
+            var setting = {
+                width: this.width  ,
+                height:Ti.UI.SIZE,
+                backgroundColor:"#ffffff",
+                rowId : opt.id , // 这个id很重要，用来唯一标识
+            };        
+            
+            if( 0 === opt.position || -1 === opt.position ) // first
+            {
+                 setting['borderRadius'] = this.borderRadius ;
+            }
+            
+            var view = Ti.UI.createView(setting);
+            if( tQuery.type( this.callback ) === 'function')
+            {
+                view.addEventListener("click", this.callback );
+            }
+            
+            // 标识是第一个还是最后一个
+            if( 0 === opt.position ) // first
+            {
+                var mask = this.createBottomMask();
+                view.add( mask );  
+            }
+            else if( opt.position === -1 )
+            {
+                var mask = this.createTopMask();
+                view.add( mask );
+            }
+            
+            // country img 
+            var img = Ti.UI.createView({
+                borderRadius : this.borderRadius ,
+                backgroundImage : tQuery.UI.rPath( opt.image ),
+                width : tQuery.m( IMAGE_WH ),
+                height: tQuery.m( IMAGE_WH ),
+                textAlign : Ti.UI.TEXT_ALIGNMENT_LEFT,
+                left: this.internalViewMarginTop ,
+                right:this.internalViewMarginTop ,
+                top:this.internalViewMarginTop ,
+                bottom:this.internalViewMarginTop ,
+            });
+            
+            // country name
+            var name = Ti.UI.createLabel({
+                text : opt.name ,
+                color:"#000000",
+                textAlign : Ti.UI.TEXT_ALIGNMENT_CENTER,
+                top: this.internalViewMarginTop  ,
+                left : tQuery.m(this.internalViewMarginTop  + IMAGE_WH + NAME_MARGIN_LEFT ) , 
+                font:{
+                    fontSize: tQuery.f(NAME_FONT_SIZE),
+                    fontWeight:"bold"
+                    },
+            });
+            
+            // country description
+            var description  = Ti.UI.createLabel({
+                text : opt.description ,
+                textAlign : Ti.UI.TEXT_ALIGNMENT_LEFT ,
+                top : tQuery.m(this.internalViewMarginTop + tQuery.c(NAME_FONT_SIZE) + this.internalViewMarginTop)  ,
+                left : tQuery.m(this.internalViewMarginTop  + IMAGE_WH + NAME_MARGIN_LEFT ) , 
+                color:"#000000",
+                font:{
+                    fontSize: tQuery.f(DESCRIPTION_FONT_SIZE)
+                    },
+            });
+            
+            view.add( img );
+            view.add( name );
+            view.add( description );
+            
+            return view ;
+            
+        };
+        
+        
+        this.createScrollView = function()
+        {
+            return Ti.UI.createScrollView( this.options.scrollView );
+        }
+        
+        /**
+         * 创建一个区域header view 
+         */
+        this.createAreaHeader = function(text)
+        {
+            var view = Ti.UI.createView({
+                height:Ti.UI.SIZE,
+                width: this.width , 
+            });
+        
+            // header
+            var opt = this.options.header ;
+            opt.text = text ;
+            var header = Ti.UI.createLabel(opt);
+    
+            view.add( header );
+        
+            return view ;
+        }
+        
+        this.createLine = function()
+        {
+            var view = Ti.UI.createView( this.options.line );
+            
+            return view ;
+        };
+        
+        /**
+         * 遮罩view 
+         * @param {Boolen} bool true -> top , false ->bottom 
+         */
+        this.__createMask = function(bool)
+        {
+            // 这里按引用获取了对象，然后又改变了对象的值，导致bug查了很久
+            var opt = tQuery.clone(this.options.mask) ; 
+            var position = bool === true ? "top" : "bottom" ;
+            opt[position] = 0 ;
+    
+            return Ti.UI.createView(opt);
+        }
+        
+        // 创建底部遮罩
+        this.createBottomMask = function()
+        {
+            return this.__createMask( false );
+        }
+    
+        // 创建顶部遮罩
+        this.createTopMask = function()
+        {
+            return this.__createMask( true );
+        };
+        
+        // 创建顶部提示框
+        this.createHeaderNotification = function()
+        {
+            var header = Ti.UI.createView( this.options.notificationHeaderView );
+            var label = Ti.UI.createLabel(this.options.notificationHeaderLabel);
+        
+            header.add( label );
+        
+            return header ;    
+        };
+        
+        this.createBackgroundView = function()
+        {
+            return Ti.UI.createView(this.options.backgroundView);
+        }
+        
+    },
     
 }
 
